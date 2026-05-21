@@ -7,6 +7,7 @@ class FactorScores(BaseModel):
     income_stability: float
     client_diversity: float
     savings_behavior: float
+    contract_verification: float  # NEW — 10% weight
 
 
 class LoanRecommendation(BaseModel):
@@ -23,6 +24,10 @@ class MihanScore(BaseModel):
     loan: Optional[LoanRecommendation]
     worst_month_income: int
     repayment_capacity: int
+    max_installment: int      # repayment_capacity (alias for clarity)
+    phase: str = "phase1"
+    dbr_cap_pct: float = 0.45
+    vanc_income: Optional[int] = None
 
 
 class Profile(BaseModel):

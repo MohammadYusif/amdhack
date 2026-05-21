@@ -16,9 +16,15 @@ def init_db() -> None:
                 composite_score REAL    NOT NULL,
                 tier            TEXT    NOT NULL,
                 event           TEXT    NOT NULL,
-                details         TEXT    NOT NULL DEFAULT ''
+                details         TEXT    NOT NULL DEFAULT '',
+                endpoint        TEXT    NOT NULL DEFAULT ''
             )
         """)
+        # Add endpoint column to existing databases that predate this schema
+        try:
+            conn.execute("ALTER TABLE audit_log ADD COLUMN endpoint TEXT NOT NULL DEFAULT ''")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
         conn.commit()
 
 
@@ -29,13 +35,14 @@ def append_audit_log(
     tier: str,
     event: str,
     details: str = "",
+    endpoint: str = "",
 ) -> None:
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute(
-            "INSERT INTO audit_log (timestamp, profile_id, profile_name, composite_score, tier, event, details) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (ts, profile_id, profile_name, composite_score, tier, event, details),
+            "INSERT INTO audit_log (timestamp, profile_id, profile_name, composite_score, tier, event, details, endpoint) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (ts, profile_id, profile_name, composite_score, tier, event, details, endpoint),
         )
         conn.commit()
 

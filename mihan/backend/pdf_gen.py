@@ -1,4 +1,4 @@
-"""Digital Proof of Income PDF generator — income only, no credit score, no SIMAH data."""
+"""Cash Flow History Statement PDF generator — historical transaction data only, no credit score, no SIMAH data."""
 import io
 import qrcode
 import hashlib
@@ -48,7 +48,7 @@ def generate_proof_of_income(profile) -> bytes:
     pdf.ln(8)
     pdf.set_font("Arial", "", 11)
     pdf.set_text_color(205, 144, 126)   # Alinma copper #CD907E
-    pdf.cell(0, 6, "Digital Proof of Income  |  " + _ar("إفادة الدخل الرقمية"), align="C")
+    pdf.cell(0, 6, "Cash Flow History Statement  |  " + _ar("بيان سجل التدفق النقدي المُحقَّق"), align="C")
 
     # Cert number + date
     cert_ref = hashlib.sha256(f"{profile.id}-{date.today()}".encode()).hexdigest()[:12].upper()
@@ -68,15 +68,15 @@ def generate_proof_of_income(profile) -> bytes:
     pdf.set_y(56)
     pdf.set_font("Arial", "B", 12)
     pdf.set_text_color(30, 30, 30)
-    pdf.cell(0, 7, "Income Verification Certificate", align="C")
+    pdf.cell(0, 7, "Cash Flow History Statement", align="C")
     pdf.ln(4)
     pdf.set_font("Arial", "", 10)
     pdf.set_text_color(80, 80, 80)
     pdf.cell(0, 6,
-        "This certificate confirms income information only. It does not contain credit scores,",
+        "This statement is a historical record of transaction data. It is NOT a credit",
         align="C")
     pdf.ln(5)
-    pdf.cell(0, 6, "SIMAH data, or any assessment of creditworthiness.", align="C")
+    pdf.cell(0, 6, "assessment or income guarantee.", align="C")
 
     # Divider
     pdf.set_draw_color(200, 205, 215)
@@ -149,9 +149,12 @@ def generate_proof_of_income(profile) -> bytes:
     pdf.set_xy(18, 219)
     pdf.set_font("Arial", "", 7.5)
     pdf.multi_cell(174, 4.5,
-        "This document is issued by Alinma Bank solely for income verification purposes. "
-        "It does not constitute a credit assessment, endorsement, or guarantee of any kind. "
-        "This certificate contains NO credit score, NO SIMAH bureau data, and NO creditworthiness evaluation. "
+        "This document is issued by Alinma Bank as a historical record of banking transaction data only. "
+        "It does not constitute a guarantee, warranty, credit assessment, or representation regarding the account "
+        "holder's future income or financial position. This document contains NO credit score, NO SIMAH bureau data, "
+        "and NO creditworthiness evaluation of any kind. All credit assessment and lending decisions made by any "
+        "third party on the basis of this document are the sole responsibility of that party. Alinma Bank accepts "
+        "no liability for any financial decisions made by third parties in reliance on this document. "
         "Verify authenticity via QR code. Valid for 30 days from issue date.")
 
     # QR code — write to temp path (Windows compatible)
