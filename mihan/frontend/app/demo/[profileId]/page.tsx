@@ -414,7 +414,7 @@ function HomePhase({ profile, onMihanTap }: { profile: Profile | null; onMihanTa
           <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 12, lineHeight: 1.7, marginBottom: 14 }}>
             بناءً على سجلك المصرفي المستمر، تم ترشيحك لتمويل يصل إلى{" "}
             <span style={{ color: "#CD907E", fontWeight: 700 }}>٦٠,٠٠٠ ريال</span>.
-            اضغط لاستعراض خياراتك عبر مسار Open Banking.
+            اضغط لاستعراض خياراتك عبر مسار البنوك المفتوحة.
           </div>
 
           {/* CTA row */}
@@ -428,7 +428,7 @@ function HomePhase({ profile, onMihanTap }: { profile: Profile | null; onMihanTa
               padding: "8px 16px", borderRadius: 10,
               boxShadow: "0 4px 12px rgba(205,144,126,0.4)",
             }}>
-              استكشف ←
+              استكشف
             </div>
           </div>
         </motion.div>
@@ -555,7 +555,7 @@ function OnboardingPhase({ step, onNafath, onCancel }: {
                 جارٍ التحقق من الهوية
               </div>
               <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>
-                يُرجى النظر إلى الكاميرا والثبات
+                انظر إلى الكاميرا وابقَ ثابتاً
               </div>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
@@ -583,7 +583,7 @@ function OnboardingPhase({ step, onNafath, onCancel }: {
             />
             <div style={{ textAlign: "center" }}>
               <div style={{ color: "#fff", fontSize: 15, fontWeight: 700, marginBottom: 6 }}>
-                جارٍ إعداد الملف البنكي الافتراضي
+                جارٍ إنشاء ملفك المالي الرقمي
               </div>
               <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, lineHeight: 1.6 }}>
                 Tech-IBAN · مطابقة هوية SAMA · تهيئة ملف آمن
@@ -625,7 +625,7 @@ function OnboardingPhase({ step, onNafath, onCancel }: {
         </div>
         {[
           { icon: "🏦", title: "الأرصدة التاريخية", desc: "كشف حساب شامل لآخر ٢٤ شهراً" },
-          { icon: "💰", title: "إيداعات المصادر الواردة", desc: "تحديد مصادر الدخل وتواترها" },
+          { icon: "💰", title: "مصادر الدخل الواردة", desc: "تحديد مصادر الدخل وتواترها" },
           { icon: "📊", title: "بيانات SADAD",           desc: "الالتزامات والفواتير الشهرية" },
           { icon: "🔍", title: "أنماط الإنفاق",         desc: "تصنيف المصروفات لقياس الانضباط المالي" },
         ].map(item => (
@@ -751,7 +751,7 @@ function ScanningPhase({ completedSteps }: { completedSteps: number }) {
             />
           </div>
           <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, marginTop: 6 }}>
-            {completedSteps} / ٥ خطوات
+            {completedSteps} / 5 خطوات
           </div>
         </div>
       </div>
@@ -928,12 +928,12 @@ function ResultPhase({
                 color: scoreVersion === v ? "#fff" : "rgba(255,255,255,0.55)",
                 fontSize: 11, fontWeight: 700, transition: "all 0.2s",
               }}>
-                {v === "v1" ? "مرح. ١" : "VANC"}
+                {v === "v1" ? "v1" : "VANC"}
               </button>
             ))}
           </div>
           <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: "0.3px" }}>
-            {scoreVersion === "v1" ? "Phase 1" : "V2 — تقييم VANC"}
+            {scoreVersion === "v1" ? "المرحلة الأولى" : "الإصدار الثاني — VANC"}
           </div>
         </div>
       </div>
@@ -952,7 +952,7 @@ function ResultPhase({
               background: tc.bg, color: tc.color, fontWeight: 700, fontSize: 13,
               padding: "5px 14px", borderRadius: 99,
             }}>
-              {tier === "GREEN" ? "✓ مؤهّل للتمويل" : tier === "YELLOW" ? "تمويل مشروط" : "مستوى التطوير"}
+              {tier === "GREEN" ? "✓ مؤهّل للتمويل" : tier === "YELLOW" ? "تمويل مشروط" : "قيد التأهيل"}
             </span>
           </div>
           {assessment.exception_sandbox_triggered && (
@@ -961,7 +961,7 @@ function ResultPhase({
               background: "#E8F5ED", borderRadius: 10,
               fontSize: 11, color: "#1A6B3A", fontWeight: 600,
             }}>
-              استثناء Sandbox مُطبَّق — SIMAH فارغ تجاوزه مِهَن
+              استثناء مُطبَّق — ملف SIMAH الشحيح تجاوزه مِهَن
             </div>
           )}
         </div>
@@ -972,7 +972,7 @@ function ResultPhase({
           marginBottom: 14, boxShadow: "var(--shadow-sm)",
         }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-1)", marginBottom: 12 }}>
-            تفصيل عوامل التقييم — SAMA AI Explainability
+            عوامل التقييم الائتماني
           </div>
           {FACTORS.map(f => (
             <FactorRow
@@ -1219,7 +1219,7 @@ function ResultPhase({
                 transition: "all 0.2s",
               }}
             >
-              {selectedBuffer ? "لوحة مسؤول الائتمان ←" : "اختر ضمانة السداد أولاً"}
+              {selectedBuffer ? "الانتقال للوحة مسؤول الائتمان" : "اختر ضمانة السداد أولاً"}
             </motion.button>
           )}
           <button
@@ -1321,7 +1321,7 @@ function OfficerDashboard({
             border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8,
             padding: "6px 14px", fontSize: 12, cursor: "pointer",
           }}>
-            ← العودة لنتيجة العميل
+            العودة لنتيجة العميل
           </button>
         </div>
       </div>
@@ -1338,7 +1338,7 @@ function OfficerDashboard({
               تحذير: تم تجاوز الرفض التلقائي لملف SIMAH الشحيح
             </div>
             <div style={{ color: "#8A5F00", fontSize: 12, lineHeight: 1.6 }}>
-              SIMAH Thin-File Auto-Rejection Overridden via Mihan Policy Sandbox.
+              تجاوزت سياسة مِهَن الرفض التلقائي بسبب ملف SIMAH الشحيح.
               نتيجة مِهَن ≥ ٧٥ — تم التحقق من المسار البديل. يُحال للمراجعة البشرية.
             </div>
           </div>
@@ -1362,7 +1362,7 @@ function OfficerDashboard({
                 background: tierConf.bg, color: tierConf.color,
                 fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99,
               }}>
-                {assessment.score.tier === "GREEN" ? "أخضر" : assessment.score.tier === "YELLOW" ? "أصفر" : "تطوير"}
+                {assessment.score.tier === "GREEN" ? "أخضر" : assessment.score.tier === "YELLOW" ? "أصفر" : "قيد التأهيل"}
               </span>
               {exceptionTriggered && (
                 <span style={{

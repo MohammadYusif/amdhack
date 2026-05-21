@@ -104,7 +104,7 @@ export default function HomePage() {
                     تحويل الراتب
                   </div>
                   {[
-                    { val: false, label: "نعم — راتبي يُحوَّل لبنك الإنماء" },
+                    { val: false, label: "نعم — راتبي يُحوَّل إلى بنك الإنماء" },
                     { val: true,  label: "لا — أنا عامل حر / مستقل" },
                   ].map((opt) => (
                     <label key={String(opt.val)} style={{

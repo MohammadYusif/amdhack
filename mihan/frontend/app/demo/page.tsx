@@ -31,7 +31,7 @@ const TIER_META: Record<string, {
 const TIER_LABELS: Record<string, string> = {
   GREEN: "أخضر — مؤهّل",
   YELLOW: "أصفر — مشروط",
-  BUILDING: "تطوير",
+  BUILDING: "قيد التأهيل",
 }
 
 export default function DemoPage() {
@@ -80,10 +80,10 @@ export default function DemoPage() {
             </div>
           </div>
           <div style={{ color: "#fff", fontSize: 22, fontWeight: 800, marginBottom: 4 }}>
-            اختر ملف العميل
+            اختر سيناريو العرض
           </div>
           <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 12 }}>
-            ٣ سيناريوهات تغطي مختلف نتائج التقييم
+            ٣ حالات توضيحية تغطي مختلف نتائج التقييم
           </div>
         </div>
 
