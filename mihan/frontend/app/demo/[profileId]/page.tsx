@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { PhoneFrame, StatusBar } from "@/components/PhoneFrame"
@@ -7,6 +7,7 @@ import { AlinmaLogo } from "@/components/AlinmaShell"
 import {
   getFullAssessment, getExplanation, getRoadmap,
   requestHumanReview, getProofOfIncomeUrl, getProfiles,
+  getScoreByVersion,
 } from "@/lib/api"
 import { TIER_CONFIG, COLORS } from "@/lib/config"
 import type { FullAssessment, Roadmap, Profile } from "@/lib/types"
@@ -24,12 +25,59 @@ const PIPELINE_STEPS = [
   { key: "step5_scoring",  ar: "تشغيل محرك تحليل مِهَن",                         icon: "⚡" },
 ]
 
-const TRANSACTIONS = [
-  { icon: "☕", name_ar: "ستاربكس — الرياض بارك",  amount: -28,   time_ar: "اليوم" },
-  { icon: "📦", name_ar: "نون للتسوق",              amount: -245,  time_ar: "أمس" },
-  { icon: "💼", name_ar: "دفعة مشروع مستقل",        amount: 4200,  time_ar: "منذ ٣ أيام" },
-  { icon: "🔵", name_ar: "SADAD — فاتورة STC",      amount: -180,  time_ar: "منذ ٥ أيام" },
-]
+type TxRow = { icon: string; name_ar: string; amount: number; time_ar: string }
+type ProfileHomeData = { balance: string; account_hint: string; max_loan: string | null; transactions: TxRow[] }
+
+const PROFILE_HOME: Record<string, ProfileHomeData> = {
+  mohammad: {
+    balance: "18,450",
+    account_hint: "•••• •••• •••• 4129",
+    max_loan: "٦٠,٠٠٠",
+    transactions: [
+      { icon: "💻", name_ar: "دفعة مشروع — Tabby Tech",     amount: 12500, time_ar: "اليوم" },
+      { icon: "☕", name_ar: "ستاربكس — الرياض بارك",        amount: -42,   time_ar: "أمس" },
+      { icon: "📱", name_ar: "SADAD — فاتورة STC",           amount: -220,  time_ar: "منذ ٣ أيام" },
+      { icon: "🛒", name_ar: "أمازون — معدات تقنية",         amount: -380,  time_ar: "منذ ٤ أيام" },
+    ],
+  },
+  noura: {
+    balance: "7,830",
+    account_hint: "•••• •••• •••• 7812",
+    max_loan: "٢٥,٠٠٠",
+    transactions: [
+      { icon: "🎨", name_ar: "دفعة تصميم — Creative Co.",    amount: 6200,  time_ar: "اليوم" },
+      { icon: "🖥",  name_ar: "Adobe CC — اشتراك شهري",       amount: -350,  time_ar: "أمس" },
+      { icon: "☕", name_ar: "ديونز — حي العليا",             amount: -55,   time_ar: "منذ يومين" },
+      { icon: "💡", name_ar: "SADAD — فاتورة الكهرباء",       amount: -310,  time_ar: "منذ ٥ أيام" },
+    ],
+  },
+  fahad: {
+    balance: "3,190",
+    account_hint: "•••• •••• •••• 2255",
+    max_loan: null,
+    transactions: [
+      { icon: "📸", name_ar: "جلسة تصوير — أنجد للعقارات",   amount: 3800,  time_ar: "منذ ٣ أيام" },
+      { icon: "🔋", name_ar: "جرير — بطاريات ومعدات",        amount: -290,  time_ar: "منذ ٤ أيام" },
+      { icon: "📱", name_ar: "SADAD — فاتورة موبايلي",        amount: -195,  time_ar: "منذ ٦ أيام" },
+      { icon: "🚗", name_ar: "إيجار سيارة — Lumi",            amount: -450,  time_ar: "منذ أسبوع" },
+    ],
+  },
+}
+
+const INCOME_TREND: Record<string, { months: string[]; amounts: number[] }> = {
+  mohammad: {
+    months: ["ديس", "يناير", "فبراير", "مارس", "أبريل", "مايو"],
+    amounts: [18000, 22500, 19000, 21000, 20500, 23500],
+  },
+  noura: {
+    months: ["ديس", "يناير", "فبراير", "مارس", "أبريل", "مايو"],
+    amounts: [11000, 8500, 13000, 9500, 12000, 10500],
+  },
+  fahad: {
+    months: ["ديس", "يناير", "فبراير", "مارس", "أبريل", "مايو"],
+    amounts: [7500, 4500, 3800, 8000, 3200, 5500],
+  },
+}
 
 // ─── Bottom nav SVG icons ────────────────────────────────────────
 function NavHome({ active }: { active: boolean }) {
@@ -169,7 +217,17 @@ export default function ProfileDemoPage() {
   const [approved, setApproved] = useState(false)
   const [selectedBuffer, setSelectedBuffer] = useState<BufferOption>(null)
   const [scoreVersion, setScoreVersion] = useState<"v1" | "v2">("v2")
+  const [v1Score, setV1Score] = useState<import("@/lib/types").MihanScore | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
+
+  // Swap score data when version toggle changes; fall back to full assessment score
+  const shownAssessment = useMemo(() => {
+    if (!assessment) return null
+    if (scoreVersion === "v1" && v1Score) {
+      return { ...assessment, score: v1Score, loan_recommendation: v1Score.loan ?? null }
+    }
+    return assessment
+  }, [assessment, v1Score, scoreVersion])
 
   const dataRef = useRef<Promise<[FullAssessment, string, Roadmap]> | null>(null)
 
@@ -205,6 +263,9 @@ export default function ProfileDemoPage() {
     setPhase("scanning")
     setCompletedSteps(0)
 
+    // Kick off v1 score fetch concurrently — it resolves while the animation plays
+    const v1Promise = getScoreByVersion(profileId, "v1")
+
     const [assessmentData, explanationText, roadmapData] = await (dataRef.current ?? Promise.all([
       getFullAssessment(profileId),
       getExplanation(profileId, "ar"),
@@ -216,6 +277,9 @@ export default function ProfileDemoPage() {
       setCompletedSteps(i)
     }
 
+    const v1ScoreData = await v1Promise
+    if (v1ScoreData) setV1Score(v1ScoreData)
+
     setAssessment(assessmentData)
     setExplanation(explanationText)
     setRoadmap(roadmapData)
@@ -225,12 +289,12 @@ export default function ProfileDemoPage() {
   }, [profileId])
 
   // ── OFFICER PHASE — full desktop width outside phone ──────────
-  if (phase === "officer" && assessment) {
-    const tier = assessment.score.tier
+  if (phase === "officer" && shownAssessment) {
+    const tier = shownAssessment.score.tier
     const tc = TIER_CONFIG[tier]
-    const loan = assessment.loan_recommendation
+    const loan = shownAssessment.loan_recommendation
     return <OfficerDashboard
-      assessment={assessment}
+      assessment={shownAssessment}
       tierConf={tc}
       loan={loan}
       approved={approved}
@@ -247,7 +311,7 @@ export default function ProfileDemoPage() {
     <PhoneFrame dark={isDark}>
       <AnimatePresence mode="wait">
         {phase === "home" && (
-          <HomePhase key="home" profile={profile} onMihanTap={handleMihanTap} />
+          <HomePhase key="home" profile={profile} profileId={profileId} onMihanTap={handleMihanTap} />
         )}
         {phase === "onboarding" && (
           <OnboardingPhase
@@ -260,10 +324,10 @@ export default function ProfileDemoPage() {
         {phase === "scanning" && (
           <ScanningPhase key="scanning" completedSteps={completedSteps} />
         )}
-        {phase === "result" && assessment && (
+        {phase === "result" && shownAssessment && (
           <ResultPhase
             key="result"
-            assessment={assessment}
+            assessment={shownAssessment}
             explanation={explanation}
             roadmap={roadmap}
             selectedBuffer={selectedBuffer}
@@ -283,8 +347,13 @@ export default function ProfileDemoPage() {
 // ═══════════════════════════════════════════════════════════════
 // SCREEN 1 — APP HOME DASHBOARD
 // ═══════════════════════════════════════════════════════════════
-function HomePhase({ profile, onMihanTap }: { profile: Profile | null; onMihanTap: () => void }) {
+function HomePhase({ profile, profileId, onMihanTap }: {
+  profile: Profile | null
+  profileId: string
+  onMihanTap: () => void
+}) {
   const name = profile?.name_ar ?? "محمد"
+  const homeData: ProfileHomeData = PROFILE_HOME[profileId] ?? PROFILE_HOME.mohammad
 
   return (
     <motion.div
@@ -332,12 +401,12 @@ function HomePhase({ profile, onMihanTap }: { profile: Profile | null; onMihanTa
           </div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
             <span style={{ color: "#fff", fontSize: 34, fontWeight: 800, letterSpacing: "-1px" }} dir="ltr">
-              4,500
+              {homeData.balance}
             </span>
             <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 14 }}>ريال</span>
           </div>
           <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 10, letterSpacing: "1px" }} dir="ltr">
-            •••• •••• •••• 7823
+            {homeData.account_hint}
           </div>
         </div>
       </div>
@@ -412,9 +481,13 @@ function HomePhase({ profile, onMihanTap }: { profile: Profile | null; onMihanTa
           </div>
 
           <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 12, lineHeight: 1.7, marginBottom: 14 }}>
-            بناءً على سجلك المصرفي المستمر، تم ترشيحك لتمويل يصل إلى{" "}
-            <span style={{ color: "#CD907E", fontWeight: 700 }}>٦٠,٠٠٠ ريال</span>.
-            اضغط لاستعراض خياراتك عبر مسار البنوك المفتوحة.
+            {homeData.max_loan ? (
+              <>
+                بناءً على سجلك المصرفي المستمر، تم ترشيحك لتمويل يصل إلى{" "}
+                <span style={{ color: "#CD907E", fontWeight: 700 }}>{homeData.max_loan} ريال</span>.
+                اضغط لاستعراض خياراتك عبر مسار البنوك المفتوحة.
+              </>
+            ) : "سجلك المصرفي يؤهلك للانضمام إلى مسار التحسين المالي مع مِهَن. اضغط للاستعراض."}
           </div>
 
           {/* CTA row */}
@@ -439,10 +512,10 @@ function HomePhase({ profile, onMihanTap }: { profile: Profile | null; onMihanTa
             آخر المعاملات
           </div>
           <div style={{ background: "var(--surface)", borderRadius: 18, boxShadow: "var(--shadow-sm)", overflow: "hidden" }}>
-            {TRANSACTIONS.map((tx, i) => (
+            {homeData.transactions.map((tx, i) => (
               <div key={i} style={{
                 display: "flex", alignItems: "center", gap: 12, padding: "13px 16px",
-                borderBottom: i < TRANSACTIONS.length - 1 ? "1px solid var(--border)" : "none",
+                borderBottom: i < homeData.transactions.length - 1 ? "1px solid var(--border)" : "none",
               }}>
                 <div style={{
                   width: 40, height: 40, borderRadius: 12,
@@ -1345,101 +1418,332 @@ function OfficerDashboard({
         </div>
       )}
 
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 24px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "28px 32px" }}>
+
+        {/* ── Row 1: Applicant + Score + Lean summary ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
 
           {/* Applicant */}
-          <div style={{ background: "var(--surface)", borderRadius: 18, padding: "18px", boxShadow: "var(--shadow-sm)" }}>
-            <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 8 }}>المتقدم</div>
-            <div style={{ fontWeight: 700, fontSize: 18, color: "var(--text-1)", marginBottom: 4 }}>
+          <div style={{ background: "var(--surface)", borderRadius: 18, padding: "20px", boxShadow: "var(--shadow-sm)" }}>
+            <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 10, letterSpacing: "0.4px" }}>بيانات المتقدم</div>
+            <div style={{ fontWeight: 800, fontSize: 22, color: "var(--text-1)", marginBottom: 3 }}>
               {assessment.profile.name_ar}
             </div>
-            <div style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 12 }}>
+            <div style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 14 }}>
               {assessment.profile.profession_ar}
             </div>
-            <div style={{ display: "flex", gap: 6 }}>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               <span style={{
                 background: tierConf.bg, color: tierConf.color,
-                fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99,
+                fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 99,
               }}>
-                {assessment.score.tier === "GREEN" ? "أخضر" : assessment.score.tier === "YELLOW" ? "أصفر" : "قيد التأهيل"}
+                {assessment.score.tier === "GREEN" ? "✓ أخضر — مؤهّل" : assessment.score.tier === "YELLOW" ? "⚠ أصفر — مشروط" : "◌ قيد التأهيل"}
               </span>
               {exceptionTriggered && (
                 <span style={{
                   background: "#FEF5E4", color: "#D4900A",
-                  fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 99,
+                  fontSize: 11, fontWeight: 600, padding: "4px 12px", borderRadius: 99,
                 }}>
                   استثناء مُطبَّق
                 </span>
               )}
             </div>
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border)", display: "flex", gap: 20 }}>
+              {[
+                { label: "أسوأ شهر", value: `${assessment.score.worst_month_income.toLocaleString()} ر` },
+                { label: "DBR المطبّق", value: `${assessment.score.dbr_cap_pct}%` },
+                { label: "الطور", value: assessment.score.phase },
+              ].map(m => (
+                <div key={m.label}>
+                  <div style={{ fontSize: 10, color: "var(--text-3)", marginBottom: 2 }}>{m.label}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-1)" }} dir="ltr">{m.value}</div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Score */}
           <div style={{
-            background: "var(--surface)", borderRadius: 18, padding: "18px",
-            textAlign: "center", boxShadow: "var(--shadow-sm)",
+            background: "var(--surface)", borderRadius: 18, padding: "20px",
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            boxShadow: "var(--shadow-sm)",
           }}>
-            <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 8 }}>نتيجة مِهَن</div>
-            <div style={{ fontSize: 54, fontWeight: 900, color: tierConf.color, lineHeight: 1 }} dir="ltr">
+            <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 10 }}>نتيجة مِهَن</div>
+            <div style={{
+              fontSize: 72, fontWeight: 900, color: tierConf.color, lineHeight: 1,
+              textShadow: `0 0 40px ${tierConf.color}33`,
+            }} dir="ltr">
               {assessment.score.composite}
             </div>
-            <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 4 }}>/ ١٠٠</div>
+            <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 4 }}>من ١٠٠</div>
+            <div style={{
+              marginTop: 12, width: "100%", height: 6,
+              background: "var(--surface-2)", borderRadius: 99, overflow: "hidden",
+            }}>
+              <div style={{
+                height: "100%", borderRadius: 99,
+                width: `${assessment.score.composite}%`,
+                background: `linear-gradient(90deg, ${tierConf.color}88, ${tierConf.color})`,
+                transition: "width 1s ease",
+              }} />
+            </div>
+            <div style={{ marginTop: 12, fontSize: 11, color: "var(--text-3)", textAlign: "center" }}>
+              الحد الأدنى للموافقة:{" "}
+              <strong style={{ color: "var(--text-2)" }}>
+                {assessment.score.tier === "BUILDING" ? "٧٥ (تمويل كامل) / ٥٥ (مشروط)" : "تجاوز الحد ✓"}
+              </strong>
+            </div>
+          </div>
+
+          {/* Lean AIS summary */}
+          <div style={{ background: "var(--surface)", borderRadius: 18, padding: "20px", boxShadow: "var(--shadow-sm)" }}>
+            <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 10 }}>بيانات Lean AIS</div>
+            {[
+              { label: "المعاملات المسحوبة", value: String(assessment.pipeline.step2_lean_ais.transactions_pulled) },
+              { label: "أشهر البيانات", value: `${assessment.pipeline.step2_lean_ais.months} شهراً` },
+              { label: "قدرة السداد / شهر", value: `${assessment.score.repayment_capacity.toLocaleString()} ريال` },
+              { label: "الحد الأقصى للقسط", value: `${assessment.score.max_installment.toLocaleString()} ريال` },
+            ].map((r, i) => (
+              <div key={i} style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                padding: "8px 0",
+                borderBottom: i < 3 ? "1px solid var(--border)" : "none",
+              }}>
+                <span style={{ fontSize: 12, color: "var(--text-3)" }}>{r.label}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-1)" }} dir="ltr">{r.value}</span>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+        {/* ── Row 2: Income Trend ── */}
+        {(() => {
+          const trend = INCOME_TREND[profileId] ?? INCOME_TREND.mohammad
+          const max = Math.max(...trend.amounts)
+          const min = Math.min(...trend.amounts)
+          const avg = Math.round(trend.amounts.reduce((a, b) => a + b, 0) / trend.amounts.length)
+          return (
+            <div style={{
+              background: "var(--surface)", borderRadius: 18, padding: "20px 24px",
+              marginBottom: 20, boxShadow: "var(--shadow-sm)",
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-1)", marginBottom: 2 }}>
+                    مسار الدخل الشهري — ٦ أشهر
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--text-3)" }}>
+                    Lean AIS · {assessment.pipeline.step2_lean_ais.transactions_pulled} معاملة محللة
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 18 }}>
+                  {[
+                    { label: "المتوسط", val: avg, color: "var(--text-2)" },
+                    { label: "الأعلى", val: max, color: "#1A6B3A" },
+                    { label: "الأدنى", val: min, color: "#C0392B" },
+                  ].map(s => (
+                    <div key={s.label} style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: 10, color: "var(--text-3)", marginBottom: 2 }}>{s.label}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: s.color }} dir="ltr">
+                        {s.val.toLocaleString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+                {trend.amounts.map((amt, i) => {
+                  const pct = (amt / max) * 100
+                  const isMin = amt === min
+                  const isMax = amt === max
+                  const barColor = isMin ? "#C0392B" : isMax ? "#1A6B3A" : "#033957"
+                  const barBg = isMin ? "rgba(192,57,43,0.15)" : isMax ? "rgba(26,107,58,0.15)" : "rgba(3,57,87,0.08)"
+                  return (
+                    <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                      <div style={{ fontSize: 10, fontWeight: isMin || isMax ? 700 : 400, color: barColor }} dir="ltr">
+                        {(amt / 1000).toFixed(0)}k
+                      </div>
+                      <div style={{ width: "100%", height: 72, position: "relative", background: barBg, borderRadius: 6 }}>
+                        <div style={{
+                          position: "absolute", bottom: 0, left: 0, right: 0,
+                          height: `${pct}%`, borderRadius: 6,
+                          background: barColor, opacity: 0.75,
+                        }} />
+                        {(isMin || isMax) && (
+                          <div style={{
+                            position: "absolute", top: -18, left: "50%", transform: "translateX(-50%)",
+                            fontSize: 11, color: barColor,
+                          }}>
+                            {isMax ? "▲" : "▼"}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 10, color: "var(--text-3)", textAlign: "center" }}>{trend.months[i]}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* ── Row 3: SIMAH + Policy Checks ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 16, marginBottom: 20 }}>
+
           {/* SIMAH */}
           <div style={{
-            background: "var(--surface)", borderRadius: 18, padding: "16px",
+            background: "var(--surface)", borderRadius: 18, padding: "18px",
             boxShadow: "var(--shadow-sm)",
-            border: exceptionTriggered ? "2px solid #D4900A" : "none",
+            border: exceptionTriggered ? "2px solid #D4900A" : "1.5px solid transparent",
           }}>
-            <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 6 }}>SIMAH</div>
-            <div style={{ fontWeight: 700, color: "#C0392B", marginBottom: 4 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div style={{ fontSize: 11, color: "var(--text-3)" }}>تقرير SIMAH</div>
+              {exceptionTriggered && (
+                <span style={{ fontSize: 10, color: "#D4900A", fontWeight: 700 }}>استثناء ساري</span>
+              )}
+            </div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: "#C0392B", marginBottom: 8 }}>
               {assessment.simah.file_type === "EMPTY" ? "ملف فارغ" : "ملف شحيح"}
             </div>
-            <div style={{ fontSize: 12, color: "var(--text-3)", lineHeight: 1.6 }}>
+            <div style={{ fontSize: 12, color: "var(--text-3)", lineHeight: 1.7 }}>
               {assessment.simah.note_ar}
             </div>
+            {exceptionTriggered && (
+              <div style={{
+                marginTop: 10, padding: "8px 10px",
+                background: "#FEF5E4", borderRadius: 10,
+                fontSize: 11, color: "#8A5F00", lineHeight: 1.6,
+              }}>
+                نتيجة مِهَن ≥ ٧٥ تجاوزت متطلب السجل الائتماني. يُطبَّق مسار الاستثناء وفق سياسة الإنماء.
+              </div>
+            )}
           </div>
 
-          {/* Repayment capacity */}
-          <div style={{ background: "var(--surface)", borderRadius: 18, padding: "16px", boxShadow: "var(--shadow-sm)" }}>
-            <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 6 }}>قدرة السداد الشهرية</div>
-            <div style={{ fontWeight: 700, fontSize: 20, color: "var(--text-1)", marginBottom: 4 }} dir="ltr">
-              {assessment.score.repayment_capacity.toLocaleString()} ريال
-            </div>
-            <div style={{ fontSize: 11, color: "var(--text-3)" }}>
-              ٤٥٪ من أدنى دخل شهري × ٨٠٪
+          {/* Policy checks — 3×2 grid */}
+          <div style={{ background: "var(--surface)", borderRadius: 18, padding: "18px", boxShadow: "var(--shadow-sm)" }}>
+            <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 12 }}>فحوصات السياسة التنظيمية</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+              {[
+                {
+                  label: "DBR ≤ 45%",
+                  sub: "ساما — المادة ١٤(ب)",
+                  pass: true,
+                },
+                {
+                  label: "موافقة البنوك المفتوحة",
+                  sub: "Lean Technologies",
+                  pass: true,
+                },
+                {
+                  label: "توثيق نفاذ",
+                  sub: "الهوية الوطنية",
+                  pass: true,
+                },
+                {
+                  label: "تحقق Wathiq",
+                  sub: `${assessment.wathiq_results.length} عميل محللاً`,
+                  pass: !assessment.wathiq_results.some(w => w.risk_flag),
+                },
+                {
+                  label: "سجل SIMAH",
+                  sub: exceptionTriggered ? "استثناء مُطبَّق" : "شحيح — مقبول",
+                  pass: true,
+                },
+                {
+                  label: "تركيز مصادر الدخل",
+                  sub: `${assessment.wathiq_results.length} مصدر`,
+                  pass: assessment.wathiq_results.length >= 2,
+                },
+              ].map((c, i) => (
+                <div key={i} style={{
+                  background: c.pass ? "#E8F5ED" : "#FDE8E8",
+                  border: `1px solid ${c.pass ? "rgba(26,107,58,0.2)" : "rgba(192,57,43,0.2)"}`,
+                  borderRadius: 10, padding: "10px 12px",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
+                    <span style={{ fontSize: 12, color: c.pass ? "#1A6B3A" : "#C0392B" }}>
+                      {c.pass ? "✓" : "✗"}
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: c.pass ? "#1A6B3A" : "#C0392B" }}>
+                      {c.label}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 10, color: "var(--text-3)" }}>{c.sub}</div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Loan recommendation */}
+        {/* ── Row 4: Factor breakdown ── */}
+        <div style={{
+          background: "var(--surface)", borderRadius: 18, padding: "18px 24px",
+          marginBottom: 20, boxShadow: "var(--shadow-sm)",
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>تفصيل عوامل مِهَن الائتمانية</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
+            {[
+              { key: "expense_discipline",    label: "انضباط المصروفات", weight: 30 },
+              { key: "income_stability",      label: "استقرار الدخل",    weight: 25 },
+              { key: "client_diversity",      label: "تنوع العملاء",    weight: 20 },
+              { key: "savings_behavior",      label: "سلوك الادخار",    weight: 15 },
+              { key: "contract_verification", label: "توثيق العقود",    weight: 10 },
+            ].map(f => {
+              const raw = assessment.score.factors[f.key as keyof typeof assessment.score.factors] as number
+              const weighted = Math.round(raw * f.weight / 100)
+              return (
+                <div key={f.key} style={{
+                  background: "var(--surface-2)", borderRadius: 12, padding: "14px",
+                  border: `1.5px solid ${raw >= 75 ? "rgba(26,107,58,0.2)" : raw >= 55 ? "rgba(212,144,10,0.2)" : "rgba(192,57,43,0.2)"}`,
+                }}>
+                  <div style={{ fontSize: 10, color: "var(--text-3)", marginBottom: 6 }}>{f.label}</div>
+                  <div style={{
+                    fontSize: 28, fontWeight: 900, lineHeight: 1,
+                    color: raw >= 75 ? "#1A6B3A" : raw >= 55 ? "#D4900A" : "#C0392B",
+                  }} dir="ltr">{raw}</div>
+                  <div style={{ fontSize: 10, color: "var(--text-3)", marginTop: 3 }}>وزن {f.weight}%</div>
+                  <div style={{ marginTop: 8, height: 4, background: "var(--border)", borderRadius: 99, overflow: "hidden" }}>
+                    <div style={{
+                      height: "100%", borderRadius: 99, width: `${raw}%`,
+                      background: raw >= 75 ? "#1A6B3A" : raw >= 55 ? "#D4900A" : "#C0392B",
+                    }} />
+                  </div>
+                  <div style={{ fontSize: 10, color: "var(--text-3)", marginTop: 5 }} dir="ltr">
+                    مساهمة: {weighted} نقطة
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* ── Row 5: Loan recommendation ── */}
         {loan && (
           <div style={{
             background: "linear-gradient(135deg, #02141E 0%, #033957 100%)",
             borderRadius: 18, overflow: "hidden", marginBottom: 20,
           }}>
-            <div style={{ padding: "14px 18px" }}>
-              <div style={{ color: "#CD907E", fontSize: 12, fontWeight: 700 }}>توصية التمويل</div>
+            <div style={{ padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ color: "#CD907E", fontSize: 13, fontWeight: 700 }}>توصية التمويل</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+                {loan.is_dbr_compressed ? "⚖ تم تعديل المبلغ وفق حد DBR 45٪" : "DBR ضمن الحد المسموح"}
+              </div>
             </div>
             <div style={{
               display: "grid", gridTemplateColumns: "repeat(4,1fr)",
               gap: 1, background: "rgba(255,255,255,0.06)",
             }}>
               {[
-                { label: "مبلغ التمويل", value: `${loan.amount.toLocaleString()} ريال` },
-                { label: "المدة", value: `${loan.duration_months} شهر` },
-                { label: "نسبة الربح", value: `${loan.apr}%` },
-                { label: "القسط الشهري", value: `${loan.monthly_installment.toLocaleString()} ريال` },
+                { label: "مبلغ التمويل",   value: `${loan.amount.toLocaleString()} ريال` },
+                { label: "المدة",           value: `${loan.duration_months} شهراً` },
+                { label: "نسبة الربح السنوية", value: `${loan.apr}%` },
+                { label: "القسط الشهري",   value: `${loan.monthly_installment.toLocaleString()} ريال` },
               ].map(f => (
                 <div key={f.label} style={{
-                  padding: "16px 14px", background: "rgba(255,255,255,0.04)", textAlign: "center",
+                  padding: "18px 14px", background: "rgba(255,255,255,0.04)", textAlign: "center",
                 }}>
-                  <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginBottom: 6 }}>{f.label}</div>
-                  <div style={{ color: "#fff", fontWeight: 700, fontSize: 16 }} dir="ltr">{f.value}</div>
+                  <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, marginBottom: 6 }}>{f.label}</div>
+                  <div style={{ color: "#fff", fontWeight: 700, fontSize: 18 }} dir="ltr">{f.value}</div>
                 </div>
               ))}
             </div>
@@ -1447,97 +1751,132 @@ function OfficerDashboard({
           </div>
         )}
 
-        {/* Pipeline status */}
-        <div style={{
-          background: "var(--surface)", borderRadius: 18, padding: "16px 18px",
-          marginBottom: 20, boxShadow: "var(--shadow-sm)",
-        }}>
-          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>حالة خط التقييم</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {/* ── Row 6: Pipeline + Wathiq side by side ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+
+          {/* Pipeline */}
+          <div style={{ background: "var(--surface)", borderRadius: 18, padding: "18px", boxShadow: "var(--shadow-sm)" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>سجل خط التقييم</div>
             {PIPELINE_STEPS.map(step => (
               <div key={step.key} style={{
-                display: "flex", justifyContent: "space-between",
-                alignItems: "center", padding: "8px 0",
-                borderBottom: "1px solid var(--border)",
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                padding: "9px 0", borderBottom: "1px solid var(--border)",
               }}>
-                <span style={{ fontSize: 13, color: "var(--text-2)" }}>{step.ar}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 14 }}>{step.icon}</span>
+                  <span style={{ fontSize: 12, color: "var(--text-2)" }}>{step.ar}</span>
+                </div>
                 <span style={{
-                  fontSize: 11, fontWeight: 700, color: "#1A6B3A",
+                  fontSize: 10, fontWeight: 700, color: "#1A6B3A",
                   background: "#E8F5ED", padding: "3px 10px", borderRadius: 99,
                 }}>✓ مكتمل</span>
               </div>
             ))}
           </div>
-        </div>
 
-        {/* Wathiq */}
-        <div style={{
-          background: "var(--surface)", borderRadius: 18, padding: "16px 18px",
-          marginBottom: 20, boxShadow: "var(--shadow-sm)",
-        }}>
-          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>توثيق العملاء — Wathiq</div>
-          {assessment.wathiq_results.map((w, i) => (
-            <div key={i} style={{
-              display: "flex", justifyContent: "space-between", alignItems: "center",
-              padding: "10px 0", borderBottom: i < assessment.wathiq_results.length - 1 ? "1px solid var(--border)" : "none",
-            }}>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-1)" }}>{w.trade_name_ar}</div>
-                <div style={{ fontSize: 11, color: "var(--text-3)" }} dir="ltr">
-                  CR: {w.cr} — {w.months_active} شهراً نشطاً
+          {/* Wathiq */}
+          <div style={{ background: "var(--surface)", borderRadius: 18, padding: "18px", boxShadow: "var(--shadow-sm)" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>توثيق العملاء — Wathiq</div>
+            {assessment.wathiq_results.map((w, i) => (
+              <div key={i} style={{
+                padding: "12px 0",
+                borderBottom: i < assessment.wathiq_results.length - 1 ? "1px solid var(--border)" : "none",
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-1)", marginBottom: 2 }}>
+                      {w.trade_name_ar}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--text-3)" }} dir="ltr">
+                      CR: {w.cr}
+                    </div>
+                  </div>
+                  <span style={{
+                    fontSize: 11, fontWeight: 700,
+                    color: w.risk_flag ? "#D4900A" : "#1A6B3A",
+                    background: w.risk_flag ? "#FEF5E4" : "#E8F5ED",
+                    padding: "4px 12px", borderRadius: 99, flexShrink: 0,
+                  }}>
+                    {w.risk_flag ? "⚠ مراجعة" : "✓ موثّق"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: 14, marginTop: 8 }}>
+                  <div style={{ fontSize: 11, color: "var(--text-3)" }}>
+                    نشاط: <strong style={{ color: "var(--text-2)" }}>{w.months_active} شهراً</strong>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--text-3)" }}>
+                    الحالة: <strong style={{ color: "var(--text-2)" }}>{w.status}</strong>
+                  </div>
+                  {w.risk_flag && (
+                    <div style={{ fontSize: 11, color: "#D4900A", fontWeight: 600 }}>
+                      ⚠ {w.message_ar}
+                    </div>
+                  )}
                 </div>
               </div>
-              <span style={{
-                fontSize: 11, fontWeight: 700,
-                color: w.risk_flag ? "#D4900A" : "#1A6B3A",
-                background: w.risk_flag ? "#FEF5E4" : "#E8F5ED",
-                padding: "4px 12px", borderRadius: 99,
-              }}>
-                {w.risk_flag ? "⚠ مراجعة" : "✓ موثّق"}
-              </span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
-        {/* Decision row */}
-        <div style={{ display: "flex", gap: 12 }}>
-          <button
-            onClick={sendReview}
-            disabled={reviewSent}
-            style={{
-              flex: 1, padding: "14px",
-              background: reviewSent ? "#E8F5ED" : "var(--surface)",
-              color: reviewSent ? "#1A6B3A" : "var(--text-2)",
-              border: `1.5px solid ${reviewSent ? "#1A6B3A" : "var(--border)"}`,
-              borderRadius: 14, fontSize: 13, fontWeight: 600, cursor: reviewSent ? "default" : "pointer",
-            }}
-          >
-            {reviewSent ? "✓ تم إرسال المراجعة" : "طلب مراجعة بشرية"}
-          </button>
-          <button
-            onClick={() => alert("تم رفض الطلب")}
-            style={{
-              flex: 1, padding: "14px",
-              background: "#C0392B", color: "#fff",
-              border: "none", borderRadius: 14, fontSize: 13, fontWeight: 700, cursor: "pointer",
-            }}
-          >
-            رفض
-          </button>
-          <button
-            onClick={() => setApproved(true)}
-            style={{
-              flex: 1, padding: "14px",
-              background: approved
-                ? "linear-gradient(135deg, #1A6B3A, #145C30)"
-                : "linear-gradient(135deg, #033957 0%, #02141E 100%)",
-              color: "#fff", border: "none", borderRadius: 14, fontSize: 13, fontWeight: 700, cursor: "pointer",
-              transition: "background 0.3s",
-            }}
-          >
-            {approved ? "✓ تمت الموافقة" : "اعتماد التمويل"}
-          </button>
+        {/* ── Decision row ── */}
+        <div style={{
+          background: "var(--surface)", borderRadius: 18, padding: "20px 24px",
+          boxShadow: "var(--shadow-sm)",
+          border: approved ? "2px solid #1A6B3A" : "1.5px solid var(--border)",
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-1)", marginBottom: 14 }}>
+            قرار مسؤول الائتمان
+          </div>
+          <div style={{ display: "flex", gap: 12 }}>
+            <button
+              onClick={sendReview}
+              disabled={reviewSent}
+              style={{
+                flex: 1, padding: "14px",
+                background: reviewSent ? "#E8F5ED" : "var(--surface-2)",
+                color: reviewSent ? "#1A6B3A" : "var(--text-2)",
+                border: `1.5px solid ${reviewSent ? "#1A6B3A" : "var(--border)"}`,
+                borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: reviewSent ? "default" : "pointer",
+              }}
+            >
+              {reviewSent ? "✓ طُلبت المراجعة" : "📋 إحالة للمراجعة البشرية"}
+            </button>
+            <button
+              onClick={() => alert("تم رفض الطلب وتسجيله في سجل التدقيق")}
+              style={{
+                flex: 1, padding: "14px",
+                background: "#C0392B", color: "#fff",
+                border: "none", borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: "pointer",
+              }}
+            >
+              ✗ رفض الطلب
+            </button>
+            <button
+              onClick={() => setApproved(true)}
+              style={{
+                flex: 1.5, padding: "14px",
+                background: approved
+                  ? "linear-gradient(135deg, #1A6B3A, #145C30)"
+                  : "linear-gradient(135deg, #033957 0%, #02141E 100%)",
+                color: "#fff", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer",
+                transition: "background 0.3s",
+                boxShadow: approved ? "0 4px 16px rgba(26,107,58,0.4)" : "0 4px 16px rgba(2,20,30,0.25)",
+              }}
+            >
+              {approved ? "✓ تمت الموافقة على التمويل" : "اعتماد التمويل"}
+            </button>
+          </div>
+          {approved && (
+            <div style={{
+              marginTop: 12, padding: "10px 14px",
+              background: "#E8F5ED", borderRadius: 10,
+              fontSize: 12, color: "#1A6B3A", lineHeight: 1.6,
+            }}>
+              ✓ تم تسجيل قرار الاعتماد في سجل التدقيق SAMA. سيتم إشعار العميل وبدء إجراءات صرف التمويل.
+            </div>
+          )}
         </div>
+
       </div>
     </div>
   )

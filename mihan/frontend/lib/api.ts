@@ -65,6 +65,17 @@ export function getProofOfIncomeUrl(profileId: string): string {
   return `${API}/profiles/${profileId}/proof-of-income`
 }
 
+export async function getScoreByVersion(profileId: string, version: "v1" | "v2"): Promise<import("./types").MihanScore | null> {
+  try {
+    const res = await fetch(`${API}/profiles/${profileId}/score?version=${version}`)
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.score ?? null
+  } catch {
+    return null
+  }
+}
+
 // ── Legacy api object (used by existing apply/ banker/ mihan/ routes) ──
 export const api = {
   getProfiles: () => fetch(`${API}/profiles`).then(r => r.json()) as Promise<Profile[]>,
