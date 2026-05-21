@@ -1,0 +1,19 @@
+version: "3.3"
+services:
+  stremio-server:
+    container_name: stremio-server
+    image: stremio/server:latest
+    ports:
+      - 11470:11470
+      - 12470:12470
+    volumes:
+      - stremio-data:/root/.stremio-server
+    environment:
+      - FFMPEG_BIN=/usr/lib/jellyfin-ffmpeg/ffmpeg
+      - FFPROBE_BIN=/usr/lib/jellyfin-ffmpeg/ffprobe
+      - NO_CORS=1
+      - CASTING_DISABLED=1
+    restart: unless-stopped
+
+volumes:
+  stremio-data:
