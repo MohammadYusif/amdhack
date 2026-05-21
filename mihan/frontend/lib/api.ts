@@ -26,8 +26,8 @@ export async function getProfiles(): Promise<Profile[]> {
   return res.json()
 }
 
-export async function getFullAssessment(profileId: string): Promise<FullAssessment> {
-  const res = await fetch(`${API}/profiles/${profileId}/full-assessment`)
+export async function getFullAssessment(profileId: string, version: "v1" | "v2" = "v2"): Promise<FullAssessment> {
+  const res = await fetch(`${API}/profiles/${profileId}/full-assessment?version=${version}`)
   if (!res.ok) throw new Error("Failed to fetch assessment")
   return res.json()
 }
