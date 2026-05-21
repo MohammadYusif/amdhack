@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# SQLite runtime DB (auto-recreated on first run)
+mihan/backend/mihan.db
+
+# Next.js
+mihan/frontend/.next/
+mihan/frontend/out/
+mihan/frontend/node_modules/
+mihan/frontend/tsconfig.tsbuildinfo
+
+# Claude Code local config
+.claude/settings.local.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.env.local
+.env*.local
