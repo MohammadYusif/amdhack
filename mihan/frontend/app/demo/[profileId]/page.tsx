@@ -31,6 +31,54 @@ const TRANSACTIONS = [
   { icon: "🔵", name_ar: "SADAD — فاتورة STC",      amount: -180,  time_ar: "منذ ٥ أيام" },
 ]
 
+// ─── Bottom nav SVG icons ────────────────────────────────────────
+function NavHome({ active }: { active: boolean }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <path d="M5 12L12 5l7 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M5 12v7a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-7"
+        stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+        fill={active ? "currentColor" : "none"} fillOpacity={active ? 0.15 : 0}/>
+    </svg>
+  )
+}
+function NavTransfer() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <path d="M5 9h14M14 6l3 3-3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M19 15H5M10 12l-3 3 3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+function NavFinance({ active }: { active: boolean }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <path d="M3 18l5-6 4 3 4.5-6L21 14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      {active && <circle cx="19" cy="9" r="2.5" fill="currentColor" opacity="0.25"/>}
+    </svg>
+  )
+}
+function NavCards({ active }: { active: boolean }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <rect x="2" y="6" width="20" height="13" rx="2"
+        stroke="currentColor" strokeWidth="1.8"
+        fill={active ? "currentColor" : "none"} fillOpacity={active ? 0.08 : 0}/>
+      <path d="M2 10h20" stroke="currentColor" strokeWidth="1.8"/>
+      <path d="M6 15h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  )
+}
+function NavMore() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <circle cx="5" cy="12" r="1.5" fill="currentColor"/>
+      <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+      <circle cx="19" cy="12" r="1.5" fill="currentColor"/>
+    </svg>
+  )
+}
+
 // ─── ScoreGauge ─────────────────────────────────────────────────
 function ScoreGauge({ score, color }: { score: number; color: string }) {
   const r = 88
@@ -206,6 +254,7 @@ export default function ProfileDemoPage() {
             key="onboarding"
             step={onboardingStep}
             onNafath={handleNafath}
+            onCancel={() => { setPhase("home"); setOnboardingStep("consent") }}
           />
         )}
         {phase === "scanning" && (
@@ -248,13 +297,13 @@ function HomePhase({ profile, onMihanTap }: { profile: Profile | null; onMihanTa
       {/* ── App header with balance ── */}
       <div style={{
         background: "linear-gradient(160deg, #033957 0%, #02141E 100%)",
-        padding: "14px 20px 24px", flexShrink: 0,
+        padding: "14px 20px 20px", flexShrink: 0,
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <AlinmaLogo size={30} />
             <div>
-              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10 }}>مرحباً،</div>
+              <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 10 }}>مرحباً،</div>
               <div style={{ color: "#fff", fontWeight: 700, fontSize: 15 }}>{name}</div>
             </div>
           </div>
@@ -308,6 +357,7 @@ function HomePhase({ profile, onMihanTap }: { profile: Profile | null; onMihanTa
               background: "var(--surface)", borderRadius: 14,
               border: "1px solid var(--border)", padding: "12px 0",
               display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
+              opacity: 0.5, pointerEvents: "none",
             }}>
               <span style={{ fontSize: 20 }}>{a.icon}</span>
               <span style={{ fontSize: 10, color: "var(--text-3)" }}>{a.label}</span>
@@ -424,21 +474,24 @@ function HomePhase({ profile, onMihanTap }: { profile: Profile | null; onMihanTa
         display: "flex", background: "var(--surface)", flexShrink: 0,
       }}>
         {[
-          { label: "الرئيسية", active: false, icon: "⌂" },
-          { label: "تحويل",   active: false, icon: "⇄" },
-          { label: "تمويل",   active: true,  icon: "م" },
-          { label: "بطاقات",  active: false, icon: "▭" },
-          { label: "المزيد",  active: false, icon: "⋯" },
-        ].map(item => (
+          { label: "الرئيسية", active: false },
+          { label: "تحويل",   active: false },
+          { label: "تمويل",   active: true  },
+          { label: "بطاقات",  active: false },
+          { label: "المزيد",  active: false },
+        ].map((item, i) => (
           <div key={item.label} style={{
             flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
             gap: 4, padding: "10px 0 14px",
             color: item.active ? "var(--accent)" : "var(--text-3)", cursor: "default",
+            transition: "color 0.15s",
           }}>
-            <span style={{ fontSize: item.active ? 20 : 18, fontWeight: item.active ? 700 : 400 }}>
-              {item.icon}
-            </span>
-            <span style={{ fontSize: 10 }}>{item.label}</span>
+            {i === 0 && <NavHome active={item.active} />}
+            {i === 1 && <NavTransfer />}
+            {i === 2 && <NavFinance active={item.active} />}
+            {i === 3 && <NavCards active={item.active} />}
+            {i === 4 && <NavMore />}
+            <span style={{ fontSize: 10, fontWeight: item.active ? 600 : 400 }}>{item.label}</span>
           </div>
         ))}
       </div>
@@ -449,9 +502,10 @@ function HomePhase({ profile, onMihanTap }: { profile: Profile | null; onMihanTa
 // ═══════════════════════════════════════════════════════════════
 // SCREEN 3 — CONSENT & VIRTUAL PROFILE
 // ═══════════════════════════════════════════════════════════════
-function OnboardingPhase({ step, onNafath }: {
+function OnboardingPhase({ step, onNafath, onCancel }: {
   step: OnboardingStep
   onNafath: () => void
+  onCancel: () => void
 }) {
   if (step === "face-scan" || step === "provisioning") {
     return (
@@ -465,8 +519,22 @@ function OnboardingPhase({ step, onNafath }: {
           flex: 1, display: "flex", flexDirection: "column",
           alignItems: "center", justifyContent: "center",
           background: "#0A0F16", gap: 28, padding: "20px",
+          position: "relative",
         }}
       >
+        {/* Cancel button — top-right (leading edge in RTL) */}
+        <button onClick={onCancel} style={{
+          position: "absolute", top: 16, right: 16,
+          background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)",
+          borderRadius: 10, padding: "7px 14px",
+          color: "rgba(255,255,255,0.6)", fontSize: 12, cursor: "pointer",
+          display: "flex", alignItems: "center", gap: 6,
+        }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+          إلغاء
+        </button>
         {step === "face-scan" ? (
           <>
             <motion.div
@@ -541,10 +609,10 @@ function OnboardingPhase({ step, onNafath }: {
         background: "linear-gradient(160deg, #033957 0%, #02141E 100%)",
         padding: "14px 20px 20px", flexShrink: 0,
       }}>
-        <div style={{ color: "var(--alinma-copper)", fontSize: 11, marginBottom: 3 }}>
+        <div style={{ color: "var(--alinma-copper)", fontSize: 11, marginBottom: 4 }}>
           تمويل مِهَن — الخطوة ١ من ٢
         </div>
-        <div style={{ color: "#fff", fontSize: 17, fontWeight: 800 }}>
+        <div style={{ color: "#fff", fontSize: 22, fontWeight: 800 }}>
           موافقة Open Banking
         </div>
       </div>
@@ -748,7 +816,7 @@ function ScanningPhase({ completedSteps }: { completedSteps: number }) {
               {/* Label */}
               <div style={{ flex: 1 }}>
                 <div style={{
-                  color: done ? "#5CB88A" : active ? "#BEB9F0" : "rgba(255,255,255,0.35)",
+                  color: done ? "#5CB88A" : active ? "#BEB9F0" : "rgba(255,255,255,0.5)",
                   fontSize: 13, fontWeight: done || active ? 600 : 400,
                   transition: "color 0.3s",
                 }}>
@@ -791,9 +859,27 @@ function ResultPhase({
   onOfficer: () => void
   onBack: () => void
 }) {
+  const [shakeBuffer, setShakeBuffer] = useState(false)
+  const [pdfLoading, setPdfLoading] = useState(false)
+
   const tier = assessment.score.tier
   const tc = TIER_CONFIG[tier]
   const loan = assessment.loan_recommendation
+
+  function handleOfficerClick() {
+    if (!selectedBuffer) {
+      setShakeBuffer(true)
+      setTimeout(() => setShakeBuffer(false), 500)
+      return
+    }
+    onOfficer()
+  }
+
+  function handlePdfDownload() {
+    setPdfLoading(true)
+    window.open(getProofOfIncomeUrl(profileId), "_blank")
+    setTimeout(() => setPdfLoading(false), 1800)
+  }
 
   const FACTORS = [
     { key: "expense_discipline",   label: "انضباط المصروفات", weight: "30%" },
@@ -814,33 +900,41 @@ function ResultPhase({
       {/* Header */}
       <div style={{
         background: "linear-gradient(160deg, #033957 0%, #02141E 100%)",
-        padding: "14px 20px 18px", flexShrink: 0,
+        padding: "14px 20px 20px", flexShrink: 0,
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
         <button onClick={onBack} style={{
-          background: "none", border: "none", cursor: "pointer", padding: 0,
-          color: "rgba(255,255,255,0.7)",
+          background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)",
+          borderRadius: 10, padding: "7px 10px", cursor: "pointer",
+          color: "rgba(255,255,255,0.75)", display: "flex", alignItems: "center",
         }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
         </button>
-        <div style={{ color: "#fff", fontWeight: 700, fontSize: 15 }}>نتيجة التقييم</div>
+        <div style={{ color: "#fff", fontWeight: 800, fontSize: 17 }}>نتيجة التقييم</div>
         {/* v1/v2 toggle */}
-        <div style={{
-          display: "flex", background: "rgba(255,255,255,0.1)",
-          borderRadius: 8, padding: 2,
-        }}>
-          {(["v1", "v2"] as const).map(v => (
-            <button key={v} onClick={() => setScoreVersion(v)} style={{
-              padding: "4px 10px", borderRadius: 6, border: "none", cursor: "pointer",
-              background: scoreVersion === v ? "#CD907E" : "transparent",
-              color: scoreVersion === v ? "#fff" : "rgba(255,255,255,0.5)",
-              fontSize: 11, fontWeight: 700, transition: "all 0.15s",
-            }}>
-              {v === "v1" ? "V1" : "V2 VANC"}
-            </button>
-          ))}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+          <div style={{
+            display: "flex", background: "rgba(255,255,255,0.1)",
+            borderRadius: 10, padding: 2,
+          }}>
+            {(["v1", "v2"] as const).map(v => (
+              <button key={v} onClick={() => setScoreVersion(v)} style={{
+                padding: "7px 14px", borderRadius: 8, border: "none", cursor: "pointer",
+                background: scoreVersion === v
+                  ? (v === "v2" ? "#9A8CB9" : "#CD907E")
+                  : "transparent",
+                color: scoreVersion === v ? "#fff" : "rgba(255,255,255,0.55)",
+                fontSize: 11, fontWeight: 700, transition: "all 0.2s",
+              }}>
+                {v === "v1" ? "مرح. ١" : "VANC"}
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: "0.3px" }}>
+            {scoreVersion === "v1" ? "Phase 1" : "V2 — تقييم VANC"}
+          </div>
         </div>
       </div>
 
@@ -1109,31 +1203,49 @@ function ResultPhase({
         <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingBottom: 8 }}>
           {tier !== "BUILDING" && (
             <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={onOfficer}
+              whileTap={selectedBuffer ? { scale: 0.97 } : {}}
+              onClick={handleOfficerClick}
+              className={shakeBuffer ? "shake" : ""}
               style={{
                 width: "100%", padding: "15px",
-                background: "linear-gradient(135deg, #033957 0%, #02141E 100%)",
-                color: "#fff", border: "none", borderRadius: 14,
-                fontSize: 14, fontWeight: 700, cursor: "pointer",
-                boxShadow: "0 6px 18px rgba(2,20,30,0.3)",
+                background: selectedBuffer
+                  ? "linear-gradient(135deg, #033957 0%, #02141E 100%)"
+                  : "rgba(3,57,87,0.45)",
+                color: "#fff", border: selectedBuffer ? "none" : "1.5px solid rgba(255,255,255,0.1)",
+                borderRadius: 14,
+                fontSize: 14, fontWeight: 700,
+                cursor: selectedBuffer ? "pointer" : "not-allowed",
+                boxShadow: selectedBuffer ? "0 6px 18px rgba(2,20,30,0.3)" : "none",
+                transition: "all 0.2s",
               }}
             >
-              لوحة مسؤول الائتمان ←
+              {selectedBuffer ? "لوحة مسؤول الائتمان ←" : "اختر ضمانة السداد أولاً"}
             </motion.button>
           )}
-          <a
-            href={getProofOfIncomeUrl(profileId)}
-            target="_blank" rel="noopener noreferrer"
+          <button
+            onClick={handlePdfDownload}
+            disabled={pdfLoading}
             style={{
-              display: "block", width: "100%", padding: "14px",
-              background: "var(--surface)", color: "var(--text-1)",
+              width: "100%", padding: "14px",
+              background: "var(--surface)", color: pdfLoading ? "var(--text-3)" : "var(--text-1)",
               border: "1.5px solid var(--border)", borderRadius: 14,
-              fontSize: 14, fontWeight: 600, textAlign: "center", textDecoration: "none",
+              fontSize: 14, fontWeight: 600, cursor: pdfLoading ? "default" : "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              transition: "color 0.2s",
             }}
           >
-            تحميل بيان التدفق النقدي PDF
-          </a>
+            {pdfLoading ? (
+              <>
+                <div style={{
+                  width: 14, height: 14, borderRadius: "50%",
+                  border: "2px solid rgba(0,0,0,0.12)",
+                  borderTopColor: "var(--text-3)",
+                  animation: "spin 0.7s linear infinite",
+                }} />
+                جارٍ التحضير...
+              </>
+            ) : "تحميل بيان التدفق النقدي PDF"}
+          </button>
           <button
             onClick={onBack}
             style={{

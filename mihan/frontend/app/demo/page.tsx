@@ -53,12 +53,23 @@ export default function DemoPage() {
           background: "linear-gradient(160deg, #033957 0%, #02141E 100%)",
           padding: "14px 20px 22px", flexShrink: 0,
         }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <AlinmaLogo size={28} />
-              <div>
-                <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10 }}>ALINMA BANK</div>
-                <div style={{ color: "#fff", fontWeight: 700, fontSize: 14 }}>تمويل مِهَن</div>
+              <button onClick={() => router.push("/")} style={{
+                background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)",
+                borderRadius: 10, padding: "7px 10px", cursor: "pointer",
+                color: "rgba(255,255,255,0.75)", display: "flex", alignItems: "center",
+              }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <AlinmaLogo size={26} />
+                <div>
+                  <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 10 }}>ALINMA BANK</div>
+                  <div style={{ color: "#fff", fontWeight: 700, fontSize: 14 }}>تمويل مِهَن</div>
+                </div>
               </div>
             </div>
             <div style={{
@@ -68,10 +79,10 @@ export default function DemoPage() {
               عرض توضيحي
             </div>
           </div>
-          <div style={{ color: "#fff", fontSize: 19, fontWeight: 800, marginBottom: 4 }}>
+          <div style={{ color: "#fff", fontSize: 22, fontWeight: 800, marginBottom: 4 }}>
             اختر ملف العميل
           </div>
-          <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>
+          <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 12 }}>
             ٣ سيناريوهات تغطي مختلف نتائج التقييم
           </div>
         </div>
