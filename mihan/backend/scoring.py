@@ -2,11 +2,11 @@ import statistics
 from models import FactorScores, LoanRecommendation, MihanScore
 
 WEIGHTS = {
-    "expense_discipline":    0.30,   # was 0.35
-    "income_stability":      0.25,   # was 0.30
-    "client_diversity":      0.20,   # unchanged
-    "savings_behavior":      0.15,   # unchanged
-    "contract_verification": 0.10,   # NEW
+    "expense_discipline":    0.30,
+    "income_stability":      0.25,
+    "client_diversity":      0.20,
+    "savings_behavior":      0.15,
+    "contract_verification": 0.10,
 }
 
 TIER_THRESHOLDS = {"GREEN": 75, "YELLOW": 55}
@@ -25,10 +25,10 @@ LOAN_PRODUCTS = {
 
 def _composite(factors: FactorScores) -> float:
     raw = (
-        factors.expense_discipline    * WEIGHTS["expense_discipline"]
-        + factors.income_stability    * WEIGHTS["income_stability"]
-        + factors.client_diversity    * WEIGHTS["client_diversity"]
-        + factors.savings_behavior    * WEIGHTS["savings_behavior"]
+        factors.expense_discipline      * WEIGHTS["expense_discipline"]
+        + factors.income_stability      * WEIGHTS["income_stability"]
+        + factors.client_diversity      * WEIGHTS["client_diversity"]
+        + factors.savings_behavior      * WEIGHTS["savings_behavior"]
         + factors.contract_verification * WEIGHTS["contract_verification"]
     )
     return min(100.0, max(0.0, round(raw, 1)))
@@ -42,16 +42,33 @@ def _tier(composite: float) -> str:
     return "BUILDING"
 
 
+def _calibrate_loan(base_loan: LoanRecommendation, max_sama_installment: int) -> LoanRecommendation:
+    """Compress the loan offer if its installment exceeds the borrower's individual SAMA DBR ceiling."""
+    if base_loan is None:
+        return None
+    if base_loan.monthly_installment <= max_sama_installment:
+        return base_loan
+    compression_ratio = max_sama_installment / base_loan.monthly_installment
+    return LoanRecommendation(
+        amount=int(base_loan.amount * compression_ratio),
+        duration_months=base_loan.duration_months,
+        apr=base_loan.apr,
+        monthly_installment=max_sama_installment,
+        is_dbr_compressed=True,
+    )
+
+
 def calculate_score(factors: FactorScores, worst_month_income: int) -> MihanScore:
     composite = _composite(factors)
     tier = _tier(composite)
     repayment_capacity = int(worst_month_income * 0.80 * DBR_CAP)
+    calibrated_loan = _calibrate_loan(LOAN_PRODUCTS[tier], repayment_capacity)
 
     return MihanScore(
         composite=composite,
         tier=tier,
         factors=factors,
-        loan=LOAN_PRODUCTS[tier],
+        loan=calibrated_loan,
         worst_month_income=worst_month_income,
         repayment_capacity=repayment_capacity,
         max_installment=repayment_capacity,
@@ -61,7 +78,7 @@ def calculate_score(factors: FactorScores, worst_month_income: int) -> MihanScor
 
 def calculate_score_vanc(
     factors: FactorScores,
-    monthly_incomes: list[int],  # 12-month income list
+    monthly_incomes: list[int],
 ) -> MihanScore:
     """Phase 2 formula: underwriting_income = μ - (1.5 × σ)"""
     non_zero = [x for x in monthly_incomes if x > 0]
@@ -73,12 +90,13 @@ def calculate_score_vanc(
 
     composite = _composite(factors)
     tier = _tier(composite)
+    calibrated_loan = _calibrate_loan(LOAN_PRODUCTS[tier], repayment_capacity)
 
     return MihanScore(
         composite=composite,
         tier=tier,
         factors=factors,
-        loan=LOAN_PRODUCTS[tier],
+        loan=calibrated_loan,
         worst_month_income=worst_month,
         repayment_capacity=repayment_capacity,
         max_installment=repayment_capacity,

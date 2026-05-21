@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from models import HumanReviewRequest
 from profiles import PROFILES, PROFILE_ORDER
-from scoring import calculate_score
+from scoring import calculate_score, calculate_score_vanc
 from database import init_db, append_audit_log, get_audit_log
 from lean_simulation import generate_transactions, get_declared_clients
 from wathiq_simulation import verify_profile_clients, verify_cr
@@ -53,24 +53,37 @@ def list_profiles():
     ]
 
 
+def _monthly_buckets_from_transactions(profile_id: str) -> list[int]:
+    """Aggregate simulated Lean transactions into per-month totals for VANC input."""
+    transactions = generate_transactions(profile_id)
+    buckets: dict = {}
+    for tx in transactions:
+        m_key = tx["date"][:7]
+        buckets[m_key] = buckets.get(m_key, 0) + tx["amount"]
+    return list(buckets.values())
+
+
 @app.get("/profiles/{profile_id}/score")
-def get_score(profile_id: str):
+def get_score(profile_id: str, version: str = "v1"):
     profile = PROFILES.get(profile_id)
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
 
-    score = calculate_score(profile.factor_inputs, profile.worst_month_income)
+    if version == "v2":
+        score = calculate_score_vanc(profile.factor_inputs, _monthly_buckets_from_transactions(profile_id))
+    else:
+        score = calculate_score(profile.factor_inputs, profile.worst_month_income)
 
     append_audit_log(
         profile_id=profile.id,
         profile_name=profile.name_en,
         composite_score=score.composite,
         tier=score.tier,
-        event="SCORE_CALCULATED",
+        event=f"SCORE_CALCULATED_{version.upper()}",
         details=(
             f"expense={score.factors.expense_discipline} income={score.factors.income_stability} "
             f"diversity={score.factors.client_diversity} savings={score.factors.savings_behavior} "
-            f"contract={score.factors.contract_verification}"
+            f"contract={score.factors.contract_verification} version={version}"
         ),
         endpoint="/profiles/{profile_id}/score",
     )
@@ -86,6 +99,7 @@ def get_score(profile_id: str):
             "client_count": profile.client_count,
             "largest_client_pct": profile.largest_client_pct,
             "monthly_savings_pct": profile.monthly_savings_pct,
+            "selected_buffer": profile.selected_buffer,
         },
         "score": score.model_dump(),
     }
@@ -242,13 +256,13 @@ def rejection_check(data: dict):
 
 
 @app.get("/profiles/{profile_id}/full-assessment")
-def full_assessment(profile_id: str):
+def full_assessment(profile_id: str, version: str = "v1"):
     """
     Complete end-to-end assessment pipeline:
     1. SIMAH report
     2. Lean AIS transactions
     3. Wathiq client verification
-    4. Mihan score calculation
+    4. Mihan score calculation (v1 = Phase 1, v2 = VANC Phase 2)
     5. Loan recommendation
     Used to drive the 60-second scoring animation in the frontend.
     """
@@ -259,7 +273,11 @@ def full_assessment(profile_id: str):
     simah = get_simah_report(profile_id)
     transactions = generate_transactions(profile_id)
     wathiq = verify_profile_clients(profile_id)
-    score = calculate_score(profile.factor_inputs, profile.worst_month_income)
+
+    if version == "v2":
+        score = calculate_score_vanc(profile.factor_inputs, _monthly_buckets_from_transactions(profile_id))
+    else:
+        score = calculate_score(profile.factor_inputs, profile.worst_month_income)
 
     exception_triggered = (
         simah["exception_sandbox_applicable"] and score.composite >= 75
@@ -273,7 +291,7 @@ def full_assessment(profile_id: str):
         event="FULL_ASSESSMENT_COMPLETED",
         details=(
             f"simah={simah['file_type']} wathiq_verified={all(w['verified'] for w in wathiq)} "
-            f"exception_sandbox={exception_triggered}"
+            f"exception_sandbox={exception_triggered} version={version}"
         ),
         endpoint="/profiles/{profile_id}/full-assessment",
     )
@@ -285,13 +303,14 @@ def full_assessment(profile_id: str):
             "name_en": profile.name_en,
             "profession_ar": profile.profession_ar,
             "profession_en": profile.profession_en,
+            "selected_buffer": profile.selected_buffer,
         },
         "pipeline": {
             "step1_kyc":      {"status": "COMPLETE", "method": "Nafath biometric + Virtual Core Banking Profile"},
             "step2_lean_ais": {"status": "COMPLETE", "transactions_pulled": len(transactions), "months": 18},
             "step3_simah":    {"status": "COMPLETE", "file_type": simah["file_type"]},
             "step4_wathiq":   {"status": "COMPLETE", "clients_verified": sum(1 for w in wathiq if w["verified"]), "total_clients": len(wathiq)},
-            "step5_scoring":  {"status": "COMPLETE", "composite": score.composite, "tier": score.tier},
+            "step5_scoring":  {"status": "COMPLETE", "composite": score.composite, "tier": score.tier, "engine_version": version},
         },
         "score": score.model_dump(),
         "simah": simah,
