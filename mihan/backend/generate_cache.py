@@ -42,6 +42,7 @@ def build_prompt(profile_id: str) -> str:
         f"استقرار الدخل: {f.income_stability}/100\n"
         f"تنوع العملاء: {f.client_diversity}/100\n"
         f"سلوك الادخار: {f.savings_behavior}/100\n"
+        f"توثيق العقود: {f.contract_verification}/100\n"
         f"النتيجة الإجمالية: {score.composite}/100\n"
         f"التصنيف: {score.tier}\n"
     )
