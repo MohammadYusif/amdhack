@@ -33,6 +33,7 @@ export interface MihanScore {
   max_installment: number
   phase: string
   dbr_cap_pct: number
+  vanc_income: number | null
 }
 
 export interface WathiqResult {

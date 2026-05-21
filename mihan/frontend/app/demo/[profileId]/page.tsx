@@ -1037,6 +1037,31 @@ function ResultPhase({
               استثناء مُطبَّق — ملف SIMAH الشحيح تجاوزه مِهَن
             </div>
           )}
+          {/* Key income metrics — change visibly between v1 and v2 */}
+          <div style={{
+            marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--border)",
+            display: "grid", gridTemplateColumns: assessment.score.vanc_income ? "1fr 1fr 1fr" : "1fr 1fr",
+            gap: 8,
+          }}>
+            {[
+              { label: "أدنى دخل شهري", value: assessment.score.worst_month_income.toLocaleString(), unit: "ريال", color: "var(--text-1)" },
+              { label: "طاقة السداد", value: assessment.score.repayment_capacity.toLocaleString(), unit: "ريال/شهر", color: tc.color },
+              ...(assessment.score.vanc_income != null ? [{
+                label: "دخل VANC المُعدَّل",
+                value: assessment.score.vanc_income.toLocaleString(),
+                unit: "ريال",
+                color: "#9A8CB9",
+              }] : []),
+            ].map(m => (
+              <div key={m.label} style={{ textAlign: "center", padding: "4px 0" }}>
+                <div style={{ fontSize: 9, color: "var(--text-3)", marginBottom: 3 }}>{m.label}</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: m.color }} dir="ltr">
+                  {m.value}
+                  <span style={{ fontSize: 9, fontWeight: 400, color: "var(--text-3)", marginRight: 3 }}> {m.unit}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Factor bars */}
@@ -1337,7 +1362,21 @@ function ResultPhase({
 }
 
 // ═══════════════════════════════════════════════════════════════
-// SCREEN 6 — OFFICER DASHBOARD (full desktop)
+// RESPONSIVE HOOK
+// ═══════════════════════════════════════════════════════════════
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < breakpoint)
+    check()
+    window.addEventListener("resize", check)
+    return () => window.removeEventListener("resize", check)
+  }, [breakpoint])
+  return isMobile
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SCREEN 6 — OFFICER DASHBOARD (full-page, responsive)
 // ═══════════════════════════════════════════════════════════════
 function OfficerDashboard({
   assessment, tierConf, loan, approved, setApproved, profileId, onBack,
@@ -1351,6 +1390,7 @@ function OfficerDashboard({
   onBack: () => void
 }) {
   const [reviewSent, setReviewSent] = useState(false)
+  const isMobile = useIsMobile()
 
   async function sendReview() {
     await requestHumanReview(profileId, "طلب مراجعة بشرية من لوحة المسؤول")
@@ -1364,37 +1404,50 @@ function OfficerDashboard({
       {/* Banker header */}
       <div style={{
         background: "linear-gradient(160deg, #033957 0%, #02141E 100%)",
-        padding: "0 32px", display: "flex", alignItems: "center",
-        justifyContent: "space-between", height: 64,
+        padding: isMobile ? "0 16px" : "0 32px",
+        display: "flex", alignItems: "center",
+        justifyContent: "space-between",
+        height: isMobile ? 56 : 64,
         borderBottom: "2px solid rgba(205,144,126,0.3)",
+        flexWrap: isMobile ? "wrap" : "nowrap",
+        gap: isMobile ? 8 : 0,
+        paddingTop: isMobile ? 10 : 0,
+        paddingBottom: isMobile ? 10 : 0,
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <AlinmaLogo size={30} />
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <AlinmaLogo size={isMobile ? 24 : 30} />
           <div>
-            <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10 }}>نظام التمويل الداخلي</div>
-            <div style={{ color: "#fff", fontWeight: 700, fontSize: 14 }}>بنك الإنماء — لوحة مسؤول الائتمان</div>
+            {!isMobile && <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10 }}>نظام التمويل الداخلي</div>}
+            <div style={{ color: "#fff", fontWeight: 700, fontSize: isMobile ? 12 : 14 }}>
+              {isMobile ? "لوحة مسؤول الائتمان" : "بنك الإنماء — لوحة مسؤول الائتمان"}
+            </div>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{
-            background: "rgba(205,144,126,0.2)", color: "#CD907E",
-            fontSize: 11, fontWeight: 700, padding: "4px 14px", borderRadius: 99,
-            border: "1px solid rgba(205,144,126,0.3)",
-          }}>
-            مِهَن — لوحة الائتمان
-          </span>
-          <span style={{
-            background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)",
-            fontSize: 10, fontWeight: 600, padding: "4px 12px", borderRadius: 99,
-          }}>
-            داخلي — سري
-          </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {!isMobile && (
+            <>
+              <span style={{
+                background: "rgba(205,144,126,0.2)", color: "#CD907E",
+                fontSize: 11, fontWeight: 700, padding: "4px 14px", borderRadius: 99,
+                border: "1px solid rgba(205,144,126,0.3)",
+              }}>
+                مِهَن — لوحة الائتمان
+              </span>
+              <span style={{
+                background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)",
+                fontSize: 10, fontWeight: 600, padding: "4px 12px", borderRadius: 99,
+              }}>
+                داخلي — سري
+              </span>
+            </>
+          )}
           <button onClick={onBack} style={{
             background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)",
             border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8,
-            padding: "6px 14px", fontSize: 12, cursor: "pointer",
+            padding: isMobile ? "5px 10px" : "6px 14px",
+            fontSize: isMobile ? 11 : 12, cursor: "pointer", whiteSpace: "nowrap",
           }}>
-            العودة لنتيجة العميل
+            ← العودة
           </button>
         </div>
       </div>
@@ -1403,7 +1456,8 @@ function OfficerDashboard({
       {exceptionTriggered && (
         <div style={{
           background: "#FEF5E4", borderBottom: "2px solid #D4900A",
-          padding: "12px 32px", display: "flex", alignItems: "flex-start", gap: 12,
+          padding: isMobile ? "12px 16px" : "12px 32px",
+          display: "flex", alignItems: "flex-start", gap: 12,
         }}>
           <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
           <div>
@@ -1418,10 +1472,10 @@ function OfficerDashboard({
         </div>
       )}
 
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "28px 32px" }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: isMobile ? "16px" : "28px 32px" }}>
 
         {/* ── Row 1: Applicant + Score + Lean summary ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.4fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
 
           {/* Applicant */}
           <div style={{ background: "var(--surface)", borderRadius: 18, padding: "20px", boxShadow: "var(--shadow-sm)" }}>
@@ -1448,10 +1502,10 @@ function OfficerDashboard({
                 </span>
               )}
             </div>
-            <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border)", display: "flex", gap: 20 }}>
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border)", display: "flex", gap: isMobile ? 16 : 20, flexWrap: "wrap" }}>
               {[
                 { label: "أسوأ شهر", value: `${assessment.score.worst_month_income.toLocaleString()} ر` },
-                { label: "DBR المطبّق", value: `${assessment.score.dbr_cap_pct}%` },
+                { label: "DBR المطبّق", value: `${Math.round(assessment.score.dbr_cap_pct * 100)}%` },
                 { label: "الطور", value: assessment.score.phase },
               ].map(m => (
                 <div key={m.label}>
@@ -1470,7 +1524,7 @@ function OfficerDashboard({
           }}>
             <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 10 }}>نتيجة مِهَن</div>
             <div style={{
-              fontSize: 72, fontWeight: 900, color: tierConf.color, lineHeight: 1,
+              fontSize: isMobile ? 56 : 72, fontWeight: 900, color: tierConf.color, lineHeight: 1,
               textShadow: `0 0 40px ${tierConf.color}33`,
             }} dir="ltr">
               {assessment.score.composite}
@@ -1527,16 +1581,25 @@ function OfficerDashboard({
               background: "var(--surface)", borderRadius: 18, padding: "20px 24px",
               marginBottom: 20, boxShadow: "var(--shadow-sm)",
             }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+              <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "flex-start", gap: 12, marginBottom: 16 }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-1)", marginBottom: 2 }}>
-                    مسار الدخل الشهري — ٦ أشهر
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-1)" }}>
+                      مسار الدخل الشهري — ٦ أشهر
+                    </div>
+                    <div style={{
+                      fontSize: 10, color: "var(--text-3)",
+                      background: "var(--surface-2)", borderRadius: 6,
+                      padding: "2px 7px", border: "1px solid var(--border)",
+                    }}>
+                      بالألف ريال
+                    </div>
                   </div>
                   <div style={{ fontSize: 11, color: "var(--text-3)" }}>
                     Lean AIS · {assessment.pipeline.step2_lean_ais.transactions_pulled} معاملة محللة
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 18 }}>
+                <div style={{ display: "flex", gap: isMobile ? 16 : 18 }}>
                   {[
                     { label: "المتوسط", val: avg, color: "var(--text-2)" },
                     { label: "الأعلى", val: max, color: "#1A6B3A" },
@@ -1551,34 +1614,38 @@ function OfficerDashboard({
                   ))}
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-end", paddingTop: 8 }}>
                 {trend.amounts.map((amt, i) => {
                   const pct = (amt / max) * 100
                   const isMin = amt === min
                   const isMax = amt === max
                   const barColor = isMin ? "#C0392B" : isMax ? "#1A6B3A" : "#033957"
-                  const barBg = isMin ? "rgba(192,57,43,0.15)" : isMax ? "rgba(26,107,58,0.15)" : "rgba(3,57,87,0.08)"
+                  const barBg = isMin ? "rgba(192,57,43,0.08)" : isMax ? "rgba(26,107,58,0.08)" : "rgba(3,57,87,0.05)"
                   return (
-                    <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                      <div style={{ fontSize: 10, fontWeight: isMin || isMax ? 700 : 400, color: barColor }} dir="ltr">
-                        {(amt / 1000).toFixed(0)}k
+                    <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                      {/* Amount label: show in thousands, Arabic numerals */}
+                      <div style={{
+                        fontSize: 10, fontWeight: isMin || isMax ? 700 : 400,
+                        color: isMin || isMax ? barColor : "var(--text-3)",
+                        background: isMin || isMax ? (isMax ? "rgba(26,107,58,0.1)" : "rgba(192,57,43,0.1)") : "transparent",
+                        borderRadius: 4, padding: "1px 4px",
+                        lineHeight: 1.4,
+                      }} dir="ltr">
+                        {Math.round(amt / 1000)}
                       </div>
-                      <div style={{ width: "100%", height: 72, position: "relative", background: barBg, borderRadius: 6 }}>
+                      {/* Bar */}
+                      <div style={{ width: "100%", height: 64, position: "relative", background: barBg, borderRadius: "5px 5px 2px 2px" }}>
                         <div style={{
                           position: "absolute", bottom: 0, left: 0, right: 0,
-                          height: `${pct}%`, borderRadius: 6,
-                          background: barColor, opacity: 0.75,
+                          height: `${pct}%`,
+                          borderRadius: "5px 5px 2px 2px",
+                          background: `linear-gradient(180deg, ${barColor}cc, ${barColor})`,
                         }} />
-                        {(isMin || isMax) && (
-                          <div style={{
-                            position: "absolute", top: -18, left: "50%", transform: "translateX(-50%)",
-                            fontSize: 11, color: barColor,
-                          }}>
-                            {isMax ? "▲" : "▼"}
-                          </div>
-                        )}
                       </div>
-                      <div style={{ fontSize: 10, color: "var(--text-3)", textAlign: "center" }}>{trend.months[i]}</div>
+                      {/* Month label */}
+                      <div style={{ fontSize: 9, color: "var(--text-3)", textAlign: "center", lineHeight: 1.3 }}>
+                        {trend.months[i]}
+                      </div>
                     </div>
                   )
                 })}
@@ -1588,7 +1655,7 @@ function OfficerDashboard({
         })()}
 
         {/* ── Row 3: SIMAH + Policy Checks ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 16, marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 2fr", gap: 16, marginBottom: 20 }}>
 
           {/* SIMAH */}
           <div style={{
@@ -1622,7 +1689,7 @@ function OfficerDashboard({
           {/* Policy checks — 3×2 grid */}
           <div style={{ background: "var(--surface)", borderRadius: 18, padding: "18px", boxShadow: "var(--shadow-sm)" }}>
             <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 12 }}>فحوصات السياسة التنظيمية</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 8 }}>
               {[
                 {
                   label: "DBR ≤ 45%",
@@ -1681,7 +1748,7 @@ function OfficerDashboard({
           marginBottom: 20, boxShadow: "var(--shadow-sm)",
         }}>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>تفصيل عوامل مِهَن الائتمانية</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(5, 1fr)", gap: 12 }}>
             {[
               { key: "expense_discipline",    label: "انضباط المصروفات", weight: 30 },
               { key: "income_stability",      label: "استقرار الدخل",    weight: 25 },
@@ -1698,7 +1765,7 @@ function OfficerDashboard({
                 }}>
                   <div style={{ fontSize: 10, color: "var(--text-3)", marginBottom: 6 }}>{f.label}</div>
                   <div style={{
-                    fontSize: 28, fontWeight: 900, lineHeight: 1,
+                    fontSize: isMobile ? 32 : 28, fontWeight: 900, lineHeight: 1,
                     color: raw >= 75 ? "#1A6B3A" : raw >= 55 ? "#D4900A" : "#C0392B",
                   }} dir="ltr">{raw}</div>
                   <div style={{ fontSize: 10, color: "var(--text-3)", marginTop: 3 }}>وزن {f.weight}%</div>
@@ -1730,7 +1797,7 @@ function OfficerDashboard({
               </div>
             </div>
             <div style={{
-              display: "grid", gridTemplateColumns: "repeat(4,1fr)",
+              display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4,1fr)",
               gap: 1, background: "rgba(255,255,255,0.06)",
             }}>
               {[
@@ -1752,7 +1819,7 @@ function OfficerDashboard({
         )}
 
         {/* ── Row 6: Pipeline + Wathiq side by side ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 20 }}>
 
           {/* Pipeline */}
           <div style={{ background: "var(--surface)", borderRadius: 18, padding: "18px", boxShadow: "var(--shadow-sm)" }}>
@@ -1827,7 +1894,7 @@ function OfficerDashboard({
           <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-1)", marginBottom: 14 }}>
             قرار مسؤول الائتمان
           </div>
-          <div style={{ display: "flex", gap: 12 }}>
+          <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 12 }}>
             <button
               onClick={sendReview}
               disabled={reviewSent}
@@ -1854,7 +1921,7 @@ function OfficerDashboard({
             <button
               onClick={() => setApproved(true)}
               style={{
-                flex: 1.5, padding: "14px",
+                flex: isMobile ? 1 : 1.5, padding: "14px",
                 background: approved
                   ? "linear-gradient(135deg, #1A6B3A, #145C30)"
                   : "linear-gradient(135deg, #033957 0%, #02141E 100%)",

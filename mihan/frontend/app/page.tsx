@@ -269,7 +269,12 @@ export default function HomePage() {
                       fontSize: 14, fontWeight: 700, cursor: "pointer",
                       display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                     }}>
-                    <span>م</span>
+                    <div style={{
+                      width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+                      background: "rgba(255,255,255,0.25)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 12, fontWeight: 900,
+                    }}>م</div>
                     ابدأ مسار مِهَن للمستقلين
                   </button>
                   <button
