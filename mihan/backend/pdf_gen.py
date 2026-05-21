@@ -1,5 +1,7 @@
 """Cash Flow History Statement PDF generator — historical transaction data only, no credit score, no SIMAH data."""
 import io
+import os
+import platform
 import qrcode
 import hashlib
 from datetime import date
@@ -9,7 +11,30 @@ from pathlib import Path
 import arabic_reshaper
 from bidi.algorithm import get_display
 
-FONT_DIR = Path(r"C:\Windows\Fonts")
+BACKEND_DIR = Path(__file__).parent
+
+# Ordered search list: local bundle → Windows system → Linux MS → Linux DejaVu fallback
+_FONT_SEARCH = [
+    (BACKEND_DIR / "fonts" / "arial.ttf",    BACKEND_DIR / "fonts" / "arialbd.ttf"),
+    (Path(r"C:\Windows\Fonts\arial.ttf"),    Path(r"C:\Windows\Fonts\arialbd.ttf")),
+    (Path("/usr/share/fonts/truetype/msttcorefonts/Arial.ttf"),
+     Path("/usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf")),
+    (Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+     Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")),
+]
+
+
+def _load_fonts(pdf: FPDF) -> None:
+    """Register fonts under the 'Arial' family from the first available source.
+    All set_font('Arial', ...) calls in this file work unchanged regardless of OS."""
+    for regular, bold in _FONT_SEARCH:
+        if regular.exists() and bold.exists():
+            pdf.add_font("Arial", "",  str(regular))
+            pdf.add_font("Arial", "B", str(bold))
+            return
+    raise RuntimeError(
+        "No font files found. Add arial.ttf + arialbd.ttf to mihan/backend/fonts/"
+    )
 
 
 def _ar(text: str) -> str:
@@ -30,8 +55,8 @@ def _qr_png_bytes(data: str) -> bytes:
 
 def generate_proof_of_income(profile) -> bytes:
     pdf = FPDF(orientation="P", unit="mm", format="A4")
-    pdf.add_font("Arial", "",  str(FONT_DIR / "arial.ttf"))
-    pdf.add_font("Arial", "B", str(FONT_DIR / "arialbd.ttf"))
+
+    _load_fonts(pdf)
     pdf.set_auto_page_break(auto=False)
     pdf.add_page()
 
