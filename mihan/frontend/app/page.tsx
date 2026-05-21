@@ -54,7 +54,7 @@ export default function HomePage() {
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <AlinmaLogo size={28} />
                   <div>
-                    <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 10 }}>بنك الإنماء</div>
+                    <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 10 }}>بنك الإنماء</div>
                     <div style={{ color: "#fff", fontWeight: 700, fontSize: 14 }}>ALINMA BANK</div>
                   </div>
                 </div>
@@ -65,10 +65,10 @@ export default function HomePage() {
                   تمويل شخصي
                 </div>
               </div>
-              <div style={{ color: "#fff", fontSize: 18, fontWeight: 800, marginBottom: 4 }}>
+              <div style={{ color: "#fff", fontSize: 22, fontWeight: 800, marginBottom: 4 }}>
                 طلب التمويل الشخصي
               </div>
-              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>
+              <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 12 }}>
                 يرجى إدخال بياناتك للمتابعة
               </div>
             </div>
