@@ -13,6 +13,7 @@ PROFILES: dict[str, Profile] = {
             income_stability=80,
             client_diversity=72,
             savings_behavior=65,
+            contract_verification=85,   # Strong: 3 verified clients, Signit contracts
         ),
         worst_month_income=9500,
         months_of_history=18,
@@ -32,6 +33,7 @@ PROFILES: dict[str, Profile] = {
             income_stability=60,
             client_diversity=55,
             savings_behavior=42,
+            contract_verification=60,   # Moderate: 2 clients, basic contracts
         ),
         worst_month_income=6200,
         months_of_history=12,
@@ -51,6 +53,7 @@ PROFILES: dict[str, Profile] = {
             income_stability=45,
             client_diversity=22,
             savings_behavior=28,
+            contract_verification=30,   # Weak: 1 client, no verified contracts
         ),
         worst_month_income=3800,
         months_of_history=8,
