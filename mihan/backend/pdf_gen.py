@@ -118,14 +118,21 @@ def generate_proof_of_income(profile) -> bytes:
     pdf.cell(0, 6, "INCOME INFORMATION (SAR)")
     pdf.ln(8)
 
+    from lean_simulation import generate_transactions
+    transactions = generate_transactions(profile.id)
+    monthly_totals: dict = {}
+    for tx in transactions:
+        m_key = tx["date"][:7]
+        monthly_totals[m_key] = monthly_totals.get(m_key, 0) + tx["amount"]
+    actual_avg = int(sum(monthly_totals.values()) / len(monthly_totals)) if monthly_totals else 0
+
     worst = profile.worst_month_income
-    avg_income = int(worst * 1.25)
 
     income_fields = [
-        ("Average Monthly Income", f"SAR {avg_income:,}"),
+        ("Average Monthly Income", f"SAR {actual_avg:,}"),
         ("Lowest Recorded Month",  f"SAR {worst:,}"),
         ("Analysis Period",        f"{profile.months_of_history} months"),
-        ("Income Source",          "Alinma Business Account Deposits"),
+        ("Income Source",          "Alinma Business Account Deposits (Open Banking Simulated History)"),
     ]
     for label, value in income_fields:
         pdf.set_x(15)

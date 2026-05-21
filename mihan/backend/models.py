@@ -15,6 +15,7 @@ class LoanRecommendation(BaseModel):
     duration_months: int
     apr: float
     monthly_installment: int
+    is_dbr_compressed: bool = False
 
 
 class MihanScore(BaseModel):
@@ -43,6 +44,7 @@ class Profile(BaseModel):
     client_count: int
     largest_client_pct: int
     monthly_savings_pct: int
+    selected_buffer: str = "escrow_holdback"
 
 
 class AuditEntry(BaseModel):
