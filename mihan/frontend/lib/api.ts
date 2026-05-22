@@ -65,6 +65,19 @@ export function getProofOfIncomeUrl(profileId: string): string {
   return `${API}/profiles/${profileId}/proof-of-income`
 }
 
+export async function confirmBufferSelection(
+  profileId: string,
+  buffer: "escrow" | "direct-debit"
+): Promise<void> {
+  await fetch(`${API}/profiles/${profileId}/human-review`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      notes: `Buffer selected: ${buffer === "escrow" ? "Two-Month Escrow Holdback" : "SAMA Direct Debit Mandate on legacy account"}`,
+    }),
+  })
+}
+
 export async function getScoreByVersion(profileId: string, version: "v1" | "v2"): Promise<import("./types").MihanScore | null> {
   try {
     const res = await fetch(`${API}/profiles/${profileId}/score?version=${version}`)

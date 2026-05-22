@@ -8,10 +8,11 @@ import FactorBar from "@/components/FactorBar";
 import LoanCard from "@/components/LoanCard";
 
 const FACTOR_LABELS = [
-  { key: "expense_discipline", ar: "انضباط المصروفات", en: "Expense Discipline" },
-  { key: "income_stability",   ar: "استقرار الدخل",    en: "Income Stability"   },
-  { key: "client_diversity",   ar: "تنوع العملاء",     en: "Client Diversity"   },
-  { key: "savings_behavior",   ar: "سلوك الادخار",     en: "Savings Behavior"   },
+  { key: "expense_discipline",    ar: "انضباط المصروفات", en: "Expense Discipline",    weight: "30%" },
+  { key: "income_stability",      ar: "استقرار الدخل",    en: "Income Stability",      weight: "25%" },
+  { key: "client_diversity",      ar: "تنوع العملاء",     en: "Client Diversity",      weight: "20%" },
+  { key: "savings_behavior",      ar: "سلوك الادخار",     en: "Savings Behavior",      weight: "15%" },
+  { key: "contract_verification", ar: "توثيق العقود",     en: "Contract Verification", weight: "10%" },
 ] as const;
 
 export default async function ScorePage({
@@ -113,8 +114,8 @@ export default async function ScorePage({
           <div style={{ marginTop: 12, padding: "10px 12px", background: "var(--surface-2)", borderRadius: 10 }}>
             <p style={{ fontSize: 11, color: "var(--text-3)", lineHeight: 1.6 }}>
               {isEn
-                ? "Weights: Expenses 35% · Income 30% · Clients 20% · Savings 15%"
-                : "الأوزان: المصروفات 35٪ · الدخل 30٪ · العملاء 20٪ · الادخار 15٪"}
+                ? "Weights: Expenses 30% · Income 25% · Clients 20% · Savings 15% · Contracts 10%"
+                : "الأوزان: المصروفات 30٪ · الدخل 25٪ · العملاء 20٪ · الادخار 15٪ · التوثيق 10٪"}
             </p>
           </div>
         </div>

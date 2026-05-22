@@ -63,7 +63,7 @@ export default async function MihanHubPage() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
             {[
               { value: "79%",        label: isEn ? "Top Score"    : "أعلى نتيجة"   },
-              { value: "4",          label: isEn ? "Factors"      : "عوامل التحليل" },
+              { value: "5",          label: isEn ? "Factors"      : "عوامل التحليل" },
               { value: isEn ? "Instant" : "فوري", label: isEn ? "Decision" : "القرار" },
             ].map(({ value, label }) => (
               <div key={label} style={{ textAlign: "center" }}>
