@@ -131,7 +131,6 @@ All three demo personas have thin/empty SIMAH files (expected for freelancers). 
 
 ### Option A — One command (Windows PowerShell)
 ```powershell
-cd mihan
 .\start.ps1
 ```
 This opens two PowerShell windows: one for the backend, one for the frontend.
@@ -140,14 +139,14 @@ This opens two PowerShell windows: one for the backend, one for the frontend.
 
 **Terminal 1 — Backend**
 ```bash
-cd mihan/backend
+cd backend
 pip install fastapi uvicorn reportlab pydantic
 python -m uvicorn main:app --reload --port 9000
 ```
 
 **Terminal 2 — Frontend**
 ```bash
-cd mihan/frontend
+cd frontend
 npm install
 npm run dev
 ```
@@ -220,7 +219,7 @@ Base URL: `http://localhost:9000`
 ## Project Structure
 
 ```
-mihan/
+/
 ├── backend/
 │   ├── main.py                 # All API endpoints
 │   ├── scoring.py              # 5-factor engine: Phase 1 + VANC
@@ -247,5 +246,8 @@ mihan/
 │       ├── config.ts           # API URL, brand colors, tier config
 │       ├── types.ts            # TypeScript interfaces
 │       └── api.ts              # Typed fetch helpers
+├── docs/
+│   ├── README.md               # This file
+│   └── CLAUDE.md               # Claude Code project context
 └── start.ps1                   # Windows one-command startup
 ```

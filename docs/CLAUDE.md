@@ -19,7 +19,7 @@ on March 26, 2026. Mihan is the first to bring this into a commercial bank term 
 ## Current project structure
 
 ```
-mihan/
+/                                     ← repo root
 ├── backend/                          ← FastAPI — COMPLETE
 │   ├── main.py                       # All endpoints — done
 │   ├── scoring.py                    # 5-factor engine, Phase 1 + VANC — done
@@ -49,8 +49,10 @@ mihan/
 │       ├── config.ts                 # API URL + brand colors + tier config
 │       ├── types.ts                  # TypeScript interfaces for all API responses
 │       └── api.ts                    # Typed fetch helpers for all backend endpoints
-├── start.ps1                         # Windows startup script — done
-└── CLAUDE.md                         # This file
+├── docs/
+│   ├── README.md                     # Full project + demo documentation
+│   └── CLAUDE.md                     # This file — Claude Code project context
+└── start.ps1                         # Windows startup script — done
 ```
 
 ---

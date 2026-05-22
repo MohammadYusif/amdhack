@@ -12,16 +12,17 @@ venv/
 env/
 
 # SQLite runtime DB (auto-recreated on first run)
-mihan/backend/mihan.db
+backend/mihan.db
 
 # Next.js
-mihan/frontend/.next/
-mihan/frontend/out/
-mihan/frontend/node_modules/
-mihan/frontend/tsconfig.tsbuildinfo
+frontend/.next/
+frontend/out/
+frontend/node_modules/
+frontend/tsconfig.tsbuildinfo
 
-# Claude Code local config
-.claude/settings.local.json
+# Claude Code internals
+.claude/
+frontend/.claude/
 
 # OS / editor
 .DS_Store

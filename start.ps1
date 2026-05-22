@@ -1,5 +1,5 @@
 # Mihan Demo — start backend + frontend
-# Run from: C:\Users\Psycho\Downloads\tester\mihan\
+# Run from the repo root (same folder as backend/ and frontend/)
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 
