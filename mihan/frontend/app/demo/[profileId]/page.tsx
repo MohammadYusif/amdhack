@@ -7,9 +7,9 @@ import { AlinmaLogo } from "@/components/AlinmaShell"
 import {
   getFullAssessment, getExplanation, getRoadmap,
   requestHumanReview, getProofOfIncomeUrl, getProfiles,
-  getScoreByVersion,
+  getScoreByVersion, confirmBufferSelection,
 } from "@/lib/api"
-import { TIER_CONFIG, COLORS } from "@/lib/config"
+import { TIER_CONFIG, COLORS, API } from "@/lib/config"
 import type { FullAssessment, Roadmap, Profile } from "@/lib/types"
 
 // ─────────────────────────────────────────────────────────────────
@@ -219,6 +219,9 @@ export default function ProfileDemoPage() {
   const [scoreVersion, setScoreVersion] = useState<"v1" | "v2">("v2")
   const [v1Score, setV1Score] = useState<import("@/lib/types").MihanScore | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [incomeTrend, setIncomeTrend] = useState<{
+    months: string[]; amounts: number[]
+  } | null>(null)
 
   // Swap score data when version toggle changes; fall back to full assessment score
   const shownAssessment = useMemo(() => {
@@ -263,29 +266,96 @@ export default function ProfileDemoPage() {
     setPhase("scanning")
     setCompletedSteps(0)
 
-    // Kick off v1 score fetch concurrently — it resolves while the animation plays
+    // Kick off background prefetches that don't block steps
+    const explanationPromise = getExplanation(profileId, "ar")
+    const roadmapPromise = getRoadmap(profileId)
     const v1Promise = getScoreByVersion(profileId, "v1")
 
-    const [assessmentData, explanationText, roadmapData] = await (dataRef.current ?? Promise.all([
-      getFullAssessment(profileId),
-      getExplanation(profileId, "ar"),
-      getRoadmap(profileId),
-    ]))
+    // Each step waits for BOTH the real API call AND a minimum display time,
+    // so the checkmark animation is never faster than the eye can follow.
+    const STEP_MIN_MS = 1100
 
-    for (let i = 1; i <= 5; i++) {
-      await new Promise(r => setTimeout(r, 1100))
-      setCompletedSteps(i)
+    try {
+      // Step 1 — KYC
+      await Promise.all([
+        fetch(`${API}/profiles/${profileId}/pipeline/step1`),
+        new Promise(r => setTimeout(r, STEP_MIN_MS)),
+      ])
+      setCompletedSteps(1)
+
+      // Step 2 — Lean AIS (real call, returns monthly_buckets)
+      const [step2Res] = await Promise.all([
+        fetch(`${API}/profiles/${profileId}/pipeline/step2`),
+        new Promise(r => setTimeout(r, STEP_MIN_MS)),
+      ])
+      const step2Data = await (step2Res as Response).json()
+      setCompletedSteps(2)
+
+      // Step 3 — SIMAH
+      await Promise.all([
+        fetch(`${API}/profiles/${profileId}/pipeline/step3`),
+        new Promise(r => setTimeout(r, STEP_MIN_MS)),
+      ])
+      setCompletedSteps(3)
+
+      // Step 4 — Wathiq
+      await Promise.all([
+        fetch(`${API}/profiles/${profileId}/pipeline/step4`),
+        new Promise(r => setTimeout(r, STEP_MIN_MS)),
+      ])
+      setCompletedSteps(4)
+
+      // Step 5 — Scoring (VANC)
+      await Promise.all([
+        fetch(`${API}/profiles/${profileId}/pipeline/step5?version=v2`),
+        new Promise(r => setTimeout(r, STEP_MIN_MS)),
+      ])
+      setCompletedSteps(5)
+
+      // Resolve all concurrent fetches
+      const [assessmentData, explanationText, roadmapData, v1ScoreData] = await Promise.all([
+        getFullAssessment(profileId),
+        explanationPromise,
+        roadmapPromise,
+        v1Promise,
+      ])
+
+      if (v1ScoreData) setV1Score(v1ScoreData)
+      setAssessment(assessmentData)
+      setExplanation(explanationText)
+      setRoadmap(roadmapData)
+
+      // Compute income trend from real Lean monthly buckets (Task 4)
+      const monthlyBuckets: Record<string, number> = step2Data.monthly_buckets ?? {}
+      const sortedMonths = Object.keys(monthlyBuckets).sort().slice(-6)
+      const arabicMonthNames: Record<string, string> = {
+        "01": "يناير", "02": "فبراير", "03": "مارس",
+        "04": "أبريل", "05": "مايو",   "06": "يونيو",
+        "07": "يوليو", "08": "أغسطس", "09": "سبتمبر",
+        "10": "أكتوبر", "11": "نوفمبر", "12": "ديسمبر",
+      }
+      setIncomeTrend({
+        months:  sortedMonths.map(m => arabicMonthNames[m.slice(5)] ?? m.slice(5)),
+        amounts: sortedMonths.map(m => monthlyBuckets[m]),
+      })
+
+      await new Promise(r => setTimeout(r, 400))
+      setPhase("result")
+    } catch (err) {
+      console.error("Pipeline error:", err)
+      // Fallback to full-assessment on error
+      const [assessmentData, explanationText, roadmapData] = await Promise.all([
+        getFullAssessment(profileId),
+        explanationPromise,
+        roadmapPromise,
+      ])
+      setCompletedSteps(5)
+      setAssessment(assessmentData)
+      setExplanation(explanationText)
+      setRoadmap(roadmapData)
+      await new Promise(r => setTimeout(r, 400))
+      setPhase("result")
     }
-
-    const v1ScoreData = await v1Promise
-    if (v1ScoreData) setV1Score(v1ScoreData)
-
-    setAssessment(assessmentData)
-    setExplanation(explanationText)
-    setRoadmap(roadmapData)
-
-    await new Promise(r => setTimeout(r, 600))
-    setPhase("result")
   }, [profileId])
 
   // ── OFFICER PHASE — full desktop width outside phone ──────────
@@ -300,6 +370,7 @@ export default function ProfileDemoPage() {
       approved={approved}
       setApproved={setApproved}
       profileId={profileId}
+      incomeTrend={incomeTrend}
       onBack={() => setPhase("result")}
     />
   }
@@ -939,12 +1010,14 @@ function ResultPhase({
   const tc = TIER_CONFIG[tier]
   const loan = assessment.loan_recommendation
 
-  function handleOfficerClick() {
+  async function handleOfficerClick() {
     if (!selectedBuffer) {
       setShakeBuffer(true)
       setTimeout(() => setShakeBuffer(false), 500)
       return
     }
+    // Send buffer choice to backend audit log
+    await confirmBufferSelection(profileId, selectedBuffer)
     onOfficer()
   }
 
@@ -1379,7 +1452,7 @@ function useIsMobile(breakpoint = 768) {
 // SCREEN 6 — OFFICER DASHBOARD (full-page, responsive)
 // ═══════════════════════════════════════════════════════════════
 function OfficerDashboard({
-  assessment, tierConf, loan, approved, setApproved, profileId, onBack,
+  assessment, tierConf, loan, approved, setApproved, profileId, incomeTrend, onBack,
 }: {
   assessment: FullAssessment
   tierConf: typeof TIER_CONFIG[keyof typeof TIER_CONFIG]
@@ -1387,6 +1460,7 @@ function OfficerDashboard({
   approved: boolean
   setApproved: (v: boolean) => void
   profileId: string
+  incomeTrend: { months: string[]; amounts: number[] } | null
   onBack: () => void
 }) {
   const [reviewSent, setReviewSent] = useState(false)
@@ -1572,7 +1646,7 @@ function OfficerDashboard({
 
         {/* ── Row 2: Income Trend ── */}
         {(() => {
-          const trend = INCOME_TREND[profileId] ?? INCOME_TREND.mohammad
+          const trend = incomeTrend ?? INCOME_TREND[profileId] ?? INCOME_TREND.mohammad
           const max = Math.max(...trend.amounts)
           const min = Math.min(...trend.amounts)
           const avg = Math.round(trend.amounts.reduce((a, b) => a + b, 0) / trend.amounts.length)

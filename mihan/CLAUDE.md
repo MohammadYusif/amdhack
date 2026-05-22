@@ -61,6 +61,7 @@ Base URL: http://localhost:9000
 
 | Method | Path | Purpose |
 |--------|------|---------|
+| GET | /health | Deployment health check — DB, profiles, scoring engine |
 | GET | /profiles | List all 3 demo personas |
 | GET | /profiles/{id}/score?version=v1\|v2 | Mihan score (v1=Phase1, v2=VANC) |
 | GET | /profiles/{id}/explanation?lang=ar\|en | AI-generated explanation |
@@ -68,9 +69,14 @@ Base URL: http://localhost:9000
 | GET | /profiles/{id}/wathiq | Wathiq client company verification |
 | GET | /profiles/{id}/simah | SIMAH thin file report |
 | GET | /profiles/{id}/roadmap | Score improvement plan |
-| GET | /profiles/{id}/full-assessment | Complete pipeline (drives scoring animation) |
+| GET | /profiles/{id}/pipeline/step1 | KYC — Nafath biometric + Virtual Core Banking Profile |
+| GET | /profiles/{id}/pipeline/step2 | Lean AIS pull — returns monthly_buckets for income chart |
+| GET | /profiles/{id}/pipeline/step3 | SIMAH credit bureau check |
+| GET | /profiles/{id}/pipeline/step4 | Wathiq client company verification |
+| GET | /profiles/{id}/pipeline/step5 | Mihan scoring engine (v1/v2) |
+| GET | /profiles/{id}/full-assessment | Complete pipeline snapshot (fallback / officer view) |
 | GET | /profiles/{id}/proof-of-income | Cash Flow History Statement PDF download |
-| POST | /profiles/{id}/human-review | Request credit officer review |
+| POST | /profiles/{id}/human-review | Request credit officer review / log buffer selection |
 | POST | /rejection-check | Before-Mihan rejection simulation |
 | GET | /audit-log | SAMA explainability audit trail |
 
@@ -125,7 +131,14 @@ The frontend is built with Next.js 16 App Router, Tailwind CSS, Arabic-first RTL
 - `/demo/[profileId]` → Full demo flow: onboarding consent → 5-step scan animation → score result → officer dashboard
 
 ### API base URL
-`http://localhost:9000` — defined in `lib/config.ts`
+Controlled by `NEXT_PUBLIC_API_URL` env var (default `http://localhost:9000`).
+Defined in `lib/config.ts` — set it in `frontend/.env.local` for local dev or
+`frontend/.env.production.example` for production deployment.
+
+### Lean transaction determinism
+`lean_simulation.py` seeds `random.Random` from `hash(profile_id) & 0xFFFFFFFF`,
+so every call to `generate_transactions("mohammad")` returns identical amounts.
+This makes VANC calculations and the income chart consistent across all API calls.
 
 ---
 

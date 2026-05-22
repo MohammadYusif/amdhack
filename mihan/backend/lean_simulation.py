@@ -51,6 +51,10 @@ def generate_transactions(profile_id: str, months: int = 18) -> list[Transaction
     if not clients:
         return []
 
+    # Deterministic seed from profile_id so the same profile
+    # always returns the same transaction history across all API calls.
+    rng = random.Random(hash(profile_id) & 0xFFFFFFFF)
+
     transactions: list[Transaction] = []
     today = date.today()
 
@@ -58,22 +62,22 @@ def generate_transactions(profile_id: str, months: int = 18) -> list[Transaction
         month_start = today.replace(day=1) - timedelta(days=30 * month_offset)
         for client in clients:
             # Simulate occasional missing months (income gaps)
-            if profile_id == "fahad" and random.random() < 0.25:
+            if profile_id == "fahad" and rng.random() < 0.25:
                 continue  # 25% chance of no payment this month for Fahad
-            if profile_id == "noura" and random.random() < 0.10:
+            if profile_id == "noura" and rng.random() < 0.10:
                 continue  # 10% chance of gap for Noura
 
             # Vary the amount ±15%
-            variance = random.uniform(0.85, 1.15)
+            variance = rng.uniform(0.85, 1.15)
             amount = int(client["monthly_avg"] * variance / 100) * 100  # round to nearest 100
 
-            payment_day = random.randint(1, 28)
+            payment_day = rng.randint(1, 28)
             payment_date = month_start.replace(day=payment_day)
 
-            template = random.choice(NARRATION_TEMPLATES)
+            template = rng.choice(NARRATION_TEMPLATES)
             narration = template.format(
                 short_name=_short_name(client["name"]),
-                inv_num=random.randint(1000, 9999),
+                inv_num=rng.randint(1000, 9999),
             )
 
             transactions.append({

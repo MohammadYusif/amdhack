@@ -8,10 +8,11 @@ import FactorBar from "@/components/FactorBar";
 import LangToggle from "@/components/LangToggle";
 
 const FACTOR_LABELS = [
-  { key: "expense_discipline", ar: "انضباط المصروفات", en: "Expense Discipline" },
-  { key: "income_stability",   ar: "استقرار الدخل",    en: "Income Stability"   },
-  { key: "client_diversity",   ar: "تنوع العملاء",     en: "Client Diversity"   },
-  { key: "savings_behavior",   ar: "سلوك الادخار",     en: "Savings Behavior"   },
+  { key: "expense_discipline",    ar: "انضباط المصروفات", en: "Expense Discipline"    },
+  { key: "income_stability",      ar: "استقرار الدخل",    en: "Income Stability"      },
+  { key: "client_diversity",      ar: "تنوع العملاء",     en: "Client Diversity"      },
+  { key: "savings_behavior",      ar: "سلوك الادخار",     en: "Savings Behavior"      },
+  { key: "contract_verification", ar: "توثيق العقود",     en: "Contract Verification" },
 ] as const;
 
 export default async function ApplicantDetail({

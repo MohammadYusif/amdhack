@@ -4,6 +4,7 @@ import "./globals.css"
 export const metadata: Metadata = {
   title: "مِهَن | Alinma Bank",
   description: "تمويل المستقلين — Freelancer Financing",
+  icons: { icon: "/mihan-icon.svg" },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
