@@ -162,6 +162,26 @@ npm run dev
 
 ---
 
+### ⚠️ Before demo day — `backend/.env` is required for the live Wathiq proof
+
+`backend/.env` is gitignored (it holds a real developer.wathq.sa API key) and will
+**not** exist on a fresh clone. Without it, the "خلف الكواليس" panel's live
+Wathiq button silently falls back instead of firing a real API call — the demo
+still works, but you lose the live-proof moment described in Slide 12.
+
+Create `backend/.env` (copy `backend/.env.example` as a starting point) with:
+```
+ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+WATHIQ_CONSUMER_KEY=<your developer.wathq.sa consumer key>
+WATHIQ_CONSUMER_SECRET=<your developer.wathq.sa consumer secret>
+WATHIQ_BASE_URL=https://api.wathq.sa/sandbox/commercial-registration
+```
+Restart the backend after adding it. Verify it's live by calling
+`http://localhost:9000/wathiq-live-proof` directly — `"live": true` confirms
+the key and path are working before you're on stage.
+
+---
+
 ## Environment Variables
 
 ### Frontend (`mihan/frontend/.env.local`)
