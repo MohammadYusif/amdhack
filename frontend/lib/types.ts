@@ -47,6 +47,7 @@ export interface WathiqResult {
   message_ar: string
   message_en: string
   declared_name: string
+  source?: "WATHIQ_LIVE" | "SIMULATED"
 }
 
 export interface SimahReport {

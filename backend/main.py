@@ -6,8 +6,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 import io
+from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).parent))
+load_dotenv(Path(__file__).parent / ".env")
 
 from models import HumanReviewRequest
 from profiles import PROFILES, PROFILE_ORDER
@@ -198,6 +200,17 @@ def wathiq_verify(profile_id: str):
         "results": results,
         "data_source": "Wathiq — Ministry of Commerce (SAMA Circular 472047799)",
     }
+
+
+@app.get("/wathiq-live-proof")
+def wathiq_live_proof(cr: str | None = None):
+    """
+    On-demand real call to the live Wathiq API (not the demo simulation).
+    Used by the "خلف الكواليس" panel to prove the integration genuinely
+    works end-to-end, independent of the curated persona narrative.
+    """
+    from wathiq_api import fetch_live_proof, LIVE_PROOF_SAMPLE_CR
+    return fetch_live_proof(cr or LIVE_PROOF_SAMPLE_CR)
 
 
 @app.get("/profiles/{profile_id}/simah")

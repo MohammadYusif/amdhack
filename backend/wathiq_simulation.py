@@ -62,9 +62,16 @@ WATHIQ_DATABASE = {
 
 def verify_cr(cr_number: str) -> dict:
     """
-    Simulate Wathiq API call for a specific declared CR number.
-    Returns company status and any risk flags.
+    Verify a declared CR number. Tries the real Wathiq API first
+    (developer.wathq.sa, see wathiq_api.py); falls back to the
+    deterministic simulation below if the real call isn't available
+    (no credentials, no product entitlement yet, network error, etc).
     """
+    from wathiq_api import fetch_real_cr
+    live = fetch_real_cr(cr_number)
+    if live is not None:
+        return live
+
     company = WATHIQ_DATABASE.get(cr_number)
     if not company:
         return {
@@ -74,6 +81,7 @@ def verify_cr(cr_number: str) -> dict:
             "risk_flag": "CR_NOT_REGISTERED",
             "message_ar": "رقم السجل التجاري غير موجود في قاعدة بيانات وزارة التجارة",
             "message_en": "CR number not found in Ministry of Commerce database",
+            "source": "SIMULATED",
         }
 
     reg_date = date.fromisoformat(company["registration_date"])
@@ -90,6 +98,7 @@ def verify_cr(cr_number: str) -> dict:
         "risk_flag": company["risk_flag"],
         "message_ar": "تم التحقق من السجل التجاري بنجاح" if not company["risk_flag"] else "تحذير: يستدعي المراجعة",
         "message_en": "CR verified successfully" if not company["risk_flag"] else "Warning: requires review",
+        "source": "SIMULATED",
     }
 
 

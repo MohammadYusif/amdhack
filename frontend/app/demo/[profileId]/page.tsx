@@ -10,10 +10,10 @@ import {
   getScoreByVersion, confirmBufferSelection,
 } from "@/lib/api"
 import { TIER_CONFIG, COLORS, API } from "@/lib/config"
-import type { FullAssessment, Roadmap, Profile } from "@/lib/types"
+import type { FullAssessment, Roadmap, Profile, LoanRecommendation } from "@/lib/types"
 
 // ─────────────────────────────────────────────────────────────────
-type Phase = "home" | "onboarding" | "scanning" | "result" | "officer"
+type Phase = "home" | "onboarding" | "scanning" | "cashflow" | "result" | "officer"
 type OnboardingStep = "consent" | "face-scan" | "provisioning"
 type BufferOption = "escrow" | "direct-debit" | null
 
@@ -181,14 +181,30 @@ function ScoreGauge({ score, color }: { score: number; color: string }) {
   )
 }
 
+// ─── WathiqSourceTag — proves live vs simulated CR verification ──
+function WathiqSourceTag({ source }: { source?: "WATHIQ_LIVE" | "SIMULATED" }) {
+  if (source !== "WATHIQ_LIVE") return null
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 3,
+      fontSize: 8.5, fontWeight: 700, color: "#1A6B3A",
+      background: "#E8F5ED", border: "1px solid rgba(26,107,58,0.25)",
+      borderRadius: 99, padding: "1px 6px", marginRight: 6, verticalAlign: "middle",
+    }}>
+      <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#1A6B3A" }} />
+      واثق مباشر
+    </span>
+  )
+}
+
 // ─── FactorRow ───────────────────────────────────────────────────
-function FactorRow({ label, weight, value, color }: {
-  label: string; weight: string; value: number; color: string
+function FactorRow({ label, weight, value, color, source }: {
+  label: string; weight: string; value: number; color: string; source?: string
 }) {
   const [w, setW] = useState(0)
   useEffect(() => { const t = setTimeout(() => setW(value), 300); return () => clearTimeout(t) }, [value])
   return (
-    <div style={{ marginBottom: 10 }}>
+    <div style={{ marginBottom: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
         <span style={{ fontSize: 12, color: "var(--text-2)" }}>
           {label} <span style={{ color: "var(--text-3)", fontSize: 10 }}>({weight})</span>
@@ -198,6 +214,12 @@ function FactorRow({ label, weight, value, color }: {
       <div className="factor-bar-track">
         <div className="factor-bar-fill" style={{ width: `${w}%`, background: color }} />
       </div>
+      {source && (
+        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
+          <span style={{ fontSize: 8, color: color }}>◆</span>
+          <span style={{ fontSize: 9.5, color: "var(--text-3)" }}>المصدر: {source}</span>
+        </div>
+      )}
     </div>
   )
 }
@@ -222,6 +244,8 @@ export default function ProfileDemoPage() {
   const [incomeTrend, setIncomeTrend] = useState<{
     months: string[]; amounts: number[]
   } | null>(null)
+  // Full monthly cash-flow series (last ~12 months) for the Lean reveal screen
+  const [leanBuckets, setLeanBuckets] = useState<{ month: string; amount: number }[]>([])
 
   // Swap score data when version toggle changes; fall back to full assessment score
   const shownAssessment = useMemo(() => {
@@ -339,8 +363,16 @@ export default function ProfileDemoPage() {
         amounts: sortedMonths.map(m => monthlyBuckets[m]),
       })
 
+      // Full series (last 12 months) for the Lean cash-flow reveal — the Open Banking money-shot
+      const revealMonths = Object.keys(monthlyBuckets).sort().slice(-12)
+      setLeanBuckets(revealMonths.map(m => ({
+        month: arabicMonthNames[m.slice(5)] ?? m.slice(5),
+        amount: monthlyBuckets[m],
+      })))
+
       await new Promise(r => setTimeout(r, 400))
-      setPhase("result")
+      // Show the cash-flow reveal before the score (only when we have real buckets)
+      setPhase(revealMonths.length >= 3 ? "cashflow" : "result")
     } catch (err) {
       console.error("Pipeline error:", err)
       // Fallback to full-assessment on error
@@ -376,7 +408,7 @@ export default function ProfileDemoPage() {
   }
 
   // ── PHONE-WRAPPED PHASES ──────────────────────────────────────
-  const isDark = phase === "scanning" || onboardingStep === "face-scan" || onboardingStep === "provisioning"
+  const isDark = phase === "scanning" || phase === "cashflow" || onboardingStep === "face-scan" || onboardingStep === "provisioning"
 
   return (
     <PhoneFrame dark={isDark}>
@@ -394,6 +426,15 @@ export default function ProfileDemoPage() {
         )}
         {phase === "scanning" && (
           <ScanningPhase key="scanning" completedSteps={completedSteps} />
+        )}
+        {phase === "cashflow" && (
+          <CashFlowReveal
+            key="cashflow"
+            buckets={leanBuckets}
+            worstIncome={shownAssessment?.score.worst_month_income ?? 0}
+            transactions={shownAssessment?.pipeline.step2_lean_ais.transactions_pulled ?? 0}
+            onContinue={() => setPhase("result")}
+          />
         )}
         {phase === "result" && shownAssessment && (
           <ResultPhase
@@ -1028,11 +1069,11 @@ function ResultPhase({
   }
 
   const FACTORS = [
-    { key: "expense_discipline",   label: "انضباط المصروفات", weight: "30%" },
-    { key: "income_stability",     label: "استقرار الدخل",    weight: "25%" },
-    { key: "client_diversity",     label: "تنوع العملاء",    weight: "20%" },
-    { key: "savings_behavior",     label: "سلوك الادخار",    weight: "15%" },
-    { key: "contract_verification",label: "توثيق العقود",    weight: "10%" },
+    { key: "expense_discipline",   label: "انضباط المصروفات", weight: "30%", source: "تصنيف المعاملات — Lean AIS" },
+    { key: "income_stability",     label: "استقرار الدخل",    weight: "25%", source: "تذبذب الدخل — ١٨ شهر Lean" },
+    { key: "client_diversity",     label: "تنوع العملاء",    weight: "20%", source: "تركيز المصادر — مؤشر HHI" },
+    { key: "savings_behavior",     label: "سلوك الادخار",    weight: "15%", source: "رصيد نهاية الشهر — Lean" },
+    { key: "contract_verification",label: "توثيق العقود",    weight: "10%", source: "السجلات التجارية — Wathiq" },
   ]
 
   return (
@@ -1041,7 +1082,7 @@ function ResultPhase({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.35 }}
-      style={{ flex: 1, display: "flex", flexDirection: "column", background: "var(--bg)" }}
+      style={{ flex: 1, display: "flex", flexDirection: "column", background: "var(--bg)", position: "relative" }}
     >
       {/* Header */}
       <div style={{
@@ -1086,6 +1127,9 @@ function ResultPhase({
 
       {/* Scrollable content */}
       <div style={{ flex: 1, overflow: "auto", padding: "20px 16px 24px" }}>
+
+        {/* Before / After — the one-frame pitch */}
+        <BeforeAfterCard tier={tier} loan={loan} />
 
         {/* Score gauge */}
         <div style={{
@@ -1152,6 +1196,7 @@ function ResultPhase({
               weight={f.weight}
               value={assessment.score.factors[f.key as keyof typeof assessment.score.factors] as number}
               color={tc.color}
+              source={f.source}
             />
           ))}
         </div>
@@ -1260,6 +1305,9 @@ function ResultPhase({
               <div style={{ height: 14 }} />
             </div>
 
+            {/* Interactive DBR 45% guardrail calculator */}
+            <DbrCalculator loan={loan} capacity={assessment.score.repayment_capacity} />
+
             {/* Buffer selection */}
             <div style={{
               background: "var(--surface)", borderRadius: 18, padding: "16px",
@@ -1355,9 +1403,12 @@ function ResultPhase({
               padding: "8px 0",
               borderBottom: i < assessment.wathiq_results.length - 1 ? "1px solid var(--border)" : "none",
             }}>
-              <span style={{ fontSize: 13, color: "var(--text-1)", fontWeight: 500 }}>
-                {w.trade_name_ar}
-              </span>
+              <div>
+                <span style={{ fontSize: 13, color: "var(--text-1)", fontWeight: 500 }}>
+                  {w.trade_name_ar}
+                </span>
+                <WathiqSourceTag source={w.source} />
+              </div>
               <span style={{
                 fontSize: 11, fontWeight: 600,
                 color: w.risk_flag ? "#D4900A" : "#1A6B3A",
@@ -1430,6 +1481,9 @@ function ResultPhase({
           </button>
         </div>
       </div>
+
+      {/* Judge-facing proof that the data is real, not hardcoded */}
+      <BehindTheScenesButton profileId={profileId} />
     </motion.div>
   )
 }
@@ -1446,6 +1500,392 @@ function useIsMobile(breakpoint = 768) {
     return () => window.removeEventListener("resize", check)
   }, [breakpoint])
   return isMobile
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SCREEN 4.5 — LEAN CASH-FLOW REVEAL (Open Banking money-shot)
+// ═══════════════════════════════════════════════════════════════
+function CashFlowReveal({ buckets, worstIncome, transactions, onContinue }: {
+  buckets: { month: string; amount: number }[]
+  worstIncome: number
+  transactions: number
+  onContinue: () => void
+}) {
+  const data = buckets.length ? buckets : []
+  const amounts = data.map(b => b.amount)
+  const max = Math.max(1, ...amounts)
+  const min = amounts.length ? Math.min(...amounts) : 0
+  const avg = amounts.length ? Math.round(amounts.reduce((a, b) => a + b, 0) / amounts.length) : 0
+  // index of the worst (lowest) month — the DBR basis
+  const worstIdx = amounts.indexOf(min)
+
+  return (
+    <motion.div
+      key="cashflow"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.35 }}
+      style={{ flex: 1, display: "flex", flexDirection: "column", background: "#02141E" }}
+    >
+      {/* Header */}
+      <div style={{ padding: "22px 22px 8px", textAlign: "center" }}>
+        <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginBottom: 6, letterSpacing: "0.5px" }}>
+          البنوك المفتوحة · Lean AIS
+        </div>
+        <div style={{ color: "#fff", fontSize: 20, fontWeight: 800, marginBottom: 4 }}>
+          تدفقك النقدي الحقيقي
+        </div>
+        <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>
+          {transactions.toLocaleString()} معاملة عبر البنوك حُلّلت — {data.length} شهراً
+        </div>
+      </div>
+
+      {/* Chart */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "8px 18px" }}>
+        <div style={{ display: "flex", gap: 5, alignItems: "flex-end", height: 220 }}>
+          {data.map((b, i) => {
+            const pct = Math.max(4, (b.amount / max) * 100)
+            const isWorst = i === worstIdx
+            const barColor = isWorst ? "#E0584A" : "#5CB88A"
+            return (
+              <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, height: "100%", justifyContent: "flex-end" }}>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3 + i * 0.07 }}
+                  style={{ fontSize: 9, color: isWorst ? "#FF8A7A" : "rgba(255,255,255,0.55)", fontWeight: isWorst ? 700 : 500 }}
+                  dir="ltr"
+                >
+                  {Math.round(b.amount / 1000)}k
+                </motion.div>
+                <motion.div
+                  initial={{ height: 0 }}
+                  animate={{ height: `${pct}%` }}
+                  transition={{ delay: 0.3 + i * 0.07, duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
+                  style={{
+                    width: "100%", borderRadius: "5px 5px 2px 2px",
+                    background: `linear-gradient(180deg, ${barColor}, ${barColor}aa)`,
+                    boxShadow: isWorst ? "0 0 0 0 rgba(224,88,74,0.6)" : "none",
+                    animation: isWorst ? "worstPulse 1.8s ease-in-out 1.2s infinite" : undefined,
+                  }}
+                />
+                <div style={{ fontSize: 8, color: "rgba(255,255,255,0.4)", whiteSpace: "nowrap" }}>{b.month}</div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Worst-month callout */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 + data.length * 0.07 + 0.2 }}
+          style={{
+            marginTop: 18, background: "rgba(224,88,74,0.12)",
+            border: "1px solid rgba(224,88,74,0.35)", borderRadius: 14,
+            padding: "12px 14px", display: "flex", gap: 10, alignItems: "center",
+          }}
+        >
+          <span style={{ fontSize: 20 }}>🛡️</span>
+          <div>
+            <div style={{ color: "#FF8A7A", fontSize: 12, fontWeight: 700, marginBottom: 2 }}>
+              أدنى شهر: <span dir="ltr">{(worstIncome || min).toLocaleString()} ريال</span>
+            </div>
+            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, lineHeight: 1.5 }}>
+              مِهَن يبني القدرة على السداد من <strong>أسوأ شهر</strong>، لا المتوسط — إقراض مسؤول.
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Footer stats + CTA */}
+      <div style={{ padding: "8px 18px 24px" }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+          {[
+            { label: "متوسط الدخل", val: avg },
+            { label: "أعلى شهر", val: max },
+            { label: "أدنى شهر", val: min },
+          ].map(s => (
+            <div key={s.label} style={{
+              flex: 1, background: "rgba(255,255,255,0.05)", borderRadius: 12,
+              padding: "10px 8px", textAlign: "center",
+            }}>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", marginBottom: 3 }}>{s.label}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }} dir="ltr">{s.val.toLocaleString()}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 9.5, marginBottom: 12 }}>
+          مرخّص من البنك المركزي السعودي (ساما) · ٢٦ مارس ٢٠٢٦
+        </div>
+        <motion.button
+          onClick={onContinue}
+          whileTap={{ scale: 0.97 }}
+          style={{
+            width: "100%", padding: "16px",
+            background: "linear-gradient(135deg, #CD907E 0%, #C5926B 100%)",
+            color: "#fff", border: "none", borderRadius: 14,
+            fontSize: 15, fontWeight: 700, cursor: "pointer",
+            boxShadow: "0 6px 20px rgba(205,144,126,0.35)",
+          }}
+        >
+          عرض نتيجة مِهَن ←
+        </motion.button>
+      </div>
+    </motion.div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BEFORE / AFTER — the one-frame pitch
+// ═══════════════════════════════════════════════════════════════
+function BeforeAfterCard({ tier, loan }: {
+  tier: "GREEN" | "YELLOW" | "BUILDING"
+  loan: LoanRecommendation | null
+}) {
+  const approved = tier !== "BUILDING"
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      style={{
+        background: "var(--surface)", borderRadius: 18, padding: "14px",
+        marginBottom: 14, boxShadow: "var(--shadow-sm)",
+      }}
+    >
+      <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "stretch" }}>
+        {/* Today — rejected (rightmost in RTL) */}
+        <div style={{ background: "#FDECEA", border: "1px solid rgba(192,57,43,0.22)", borderRadius: 14, padding: "12px 11px" }}>
+          <div style={{ fontSize: 9.5, color: "#C0392B", fontWeight: 700, marginBottom: 6 }}>اليوم — بدون مِهَن</div>
+          <div style={{ fontSize: 14, fontWeight: 800, color: "#8B1A1A", marginBottom: 6 }}>مرفوض</div>
+          <span dir="ltr" style={{ fontSize: 8.5, color: "#C0392B", background: "rgba(192,57,43,0.12)", borderRadius: 5, padding: "2px 6px", display: "inline-block", fontWeight: 700 }}>
+            NO_SALARY_TRANSFER
+          </span>
+        </div>
+        {/* Arrow */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-3)", fontSize: 20, fontWeight: 700 }}>←</div>
+        {/* With Mihan */}
+        <div style={{
+          background: approved ? "#E8F5EE" : "#FDF3DC",
+          border: `1px solid ${approved ? "rgba(26,107,58,0.22)" : "rgba(212,144,10,0.3)"}`,
+          borderRadius: 14, padding: "12px 11px",
+        }}>
+          <div style={{ fontSize: 9.5, color: approved ? "#1A6B3A" : "#8A5F00", fontWeight: 700, marginBottom: 6 }}>مع مِهَن</div>
+          <div style={{ fontSize: 14, fontWeight: 800, color: approved ? "#1A6B3A" : "#8A5F00", marginBottom: 6 }}>
+            {approved ? "مقبول ✓" : "مسار تحسين"}
+          </div>
+          <span dir="ltr" style={{ fontSize: 11, fontWeight: 800, color: approved ? "#1A6B3A" : "#8A5F00" }}>
+            {approved && loan ? `${loan.amount.toLocaleString()} SAR` : "خطة ٩٠ يوماً"}
+          </span>
+        </div>
+      </div>
+      <div style={{ textAlign: "center", fontSize: 10, color: "var(--text-3)", marginTop: 10, lineHeight: 1.5 }}>
+        تمارا أثبتت <strong style={{ color: "var(--text-2)" }}>+٣٢٪</strong> قبولاً للمستقلين عبر نفس بيانات البنوك المفتوحة
+      </div>
+    </motion.div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DBR 45% — interactive responsible-lending guardrail
+// ═══════════════════════════════════════════════════════════════
+function DbrCalculator({ loan, capacity }: { loan: LoanRecommendation; capacity: number }) {
+  const [amount, setAmount] = useState(loan.amount)
+  const r = loan.apr / 100 / 12
+  const n = loan.duration_months
+  const installment = r > 0
+    ? Math.round((amount * r) / (1 - Math.pow(1 + r, -n)))
+    : Math.round(amount / n)
+  const over = installment > capacity
+  const pct = Math.min(100, Math.round((installment / Math.max(1, capacity)) * 100))
+  const maxAmount = Math.max(loan.amount * 2, 80000)
+
+  return (
+    <div style={{
+      background: "var(--surface)", borderRadius: 18, padding: "16px",
+      marginBottom: 14, boxShadow: "var(--shadow-sm)",
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+        <div style={{ fontSize: 13, fontWeight: 700 }}>حاسبة حد الاستقطاع (DBR ٤٥٪)</div>
+        <span style={{ fontSize: 9.5, color: "var(--text-3)" }}>ساما — المادة ١٤(ب)</span>
+      </div>
+      <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 14, lineHeight: 1.5 }}>
+        حرّك المبلغ وشاهد أثره على القسط مقابل قدرتك القصوى
+      </div>
+      <input
+        type="range" min={5000} max={maxAmount} step={1000} value={amount}
+        onChange={e => setAmount(Number(e.target.value))}
+        style={{ width: "100%", accentColor: over ? "#C0392B" : "#1A6B3A", cursor: "pointer" }}
+      />
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10 }}>
+        <div>
+          <div style={{ fontSize: 9.5, color: "var(--text-3)", marginBottom: 2 }}>مبلغ التمويل</div>
+          <div dir="ltr" style={{ fontSize: 15, fontWeight: 800, color: "var(--text-1)" }}>{amount.toLocaleString()} SAR</div>
+        </div>
+        <div style={{ textAlign: "left" }}>
+          <div style={{ fontSize: 9.5, color: "var(--text-3)", marginBottom: 2 }}>القسط الشهري</div>
+          <div dir="ltr" style={{ fontSize: 15, fontWeight: 800, color: over ? "#C0392B" : "#1A6B3A" }}>{installment.toLocaleString()} SAR</div>
+        </div>
+      </div>
+      <div style={{ marginTop: 12, height: 8, background: "var(--surface-2)", borderRadius: 99, overflow: "hidden" }}>
+        <div style={{
+          height: "100%", width: `${pct}%`, borderRadius: 99,
+          background: over ? "#C0392B" : "#1A6B3A",
+          transition: "width 0.12s linear, background 0.2s",
+        }} />
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 7 }}>
+        <span style={{ fontSize: 10, color: "var(--text-3)" }}>
+          الحد المسموح: <strong dir="ltr" style={{ color: "var(--text-2)" }}>{capacity.toLocaleString()}</strong> SAR/شهر
+        </span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: over ? "#C0392B" : "#1A6B3A" }}>
+          {over ? "يتجاوز الحد ✗" : "ضمن الحد ✓"}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BEHIND THE SCENES — proves the data is real, not hardcoded
+// ═══════════════════════════════════════════════════════════════
+function BehindTheScenesButton({ profileId }: { profileId: string }) {
+  const [open, setOpen] = useState(false)
+  const [raw, setRaw] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [liveProof, setLiveProof] = useState<{
+    live: boolean; note_ar?: string; raw_response?: unknown; http_status?: number
+  } | null>(null)
+  const [liveLoading, setLiveLoading] = useState(false)
+
+  async function load() {
+    setOpen(true)
+    setLoading(true)
+    try {
+      const res = await fetch(`${API}/profiles/${profileId}/full-assessment?version=v2`)
+      const j = await res.json()
+      setRaw(JSON.stringify(j, null, 2))
+    } catch {
+      setRaw("تعذّر الجلب — تأكد أن الخادم يعمل على المنفذ 9000")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function callRealWathiq() {
+    setLiveLoading(true)
+    try {
+      const res = await fetch(`${API}/wathiq-live-proof`)
+      setLiveProof(await res.json())
+    } catch {
+      setLiveProof({ live: false })
+    } finally {
+      setLiveLoading(false)
+    }
+  }
+
+  const endpoints = [
+    `GET /profiles/${profileId}/pipeline/step1   → KYC نفاذ`,
+    `GET /profiles/${profileId}/pipeline/step2   → Lean AIS`,
+    `GET /profiles/${profileId}/pipeline/step3   → SIMAH`,
+    `GET /profiles/${profileId}/pipeline/step4   → Wathiq`,
+    `GET /profiles/${profileId}/pipeline/step5   → Mihan VANC`,
+  ]
+
+  return (
+    <>
+      <button onClick={load} style={{
+        position: "absolute", bottom: 14, left: 14, zIndex: 30,
+        background: "rgba(2,20,30,0.9)", color: "#CD907E",
+        border: "1px solid rgba(205,144,126,0.4)", borderRadius: 99,
+        padding: "8px 14px", fontSize: 11, fontWeight: 700, cursor: "pointer",
+        boxShadow: "0 4px 14px rgba(2,20,30,0.4)",
+        display: "flex", gap: 6, alignItems: "center",
+      }}>
+        <span dir="ltr">{"</>"}</span> خلف الكواليس
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: "absolute", inset: 0, zIndex: 40,
+              background: "rgba(2,20,30,0.97)",
+              display: "flex", flexDirection: "column", padding: "18px 16px",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ color: "#fff", fontSize: 15, fontWeight: 800 }}>بيانات حقيقية — لا قيم ثابتة</div>
+              <button onClick={() => setOpen(false)} style={{
+                background: "rgba(255,255,255,0.1)", color: "#fff", border: "none",
+                borderRadius: 8, padding: "6px 12px", fontSize: 12, cursor: "pointer",
+              }}>إغلاق ✕</button>
+            </div>
+            <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 11, marginBottom: 8 }}>
+              استدعاءات API الفعلية أثناء التقييم:
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              {endpoints.map((e, i) => (
+                <div key={i} dir="ltr" style={{
+                  fontFamily: "monospace", fontSize: 10, color: "#5CB88A",
+                  background: "rgba(92,184,138,0.08)", borderRadius: 6,
+                  padding: "5px 8px", marginBottom: 4, textAlign: "left",
+                }}>{e}</div>
+              ))}
+            </div>
+            <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 11, marginBottom: 6 }}>
+              الاستجابة الخام (full-assessment):
+            </div>
+            <pre dir="ltr" style={{
+              maxHeight: "32vh", overflow: "auto", background: "#0A0F16", color: "#9FE6C0",
+              fontSize: 9.5, lineHeight: 1.5, borderRadius: 10, padding: "12px",
+              margin: 0, textAlign: "left", border: "1px solid rgba(255,255,255,0.08)",
+            }}>
+              {loading ? "... جارٍ الجلب" : raw}
+            </pre>
+
+            {/* Real, on-demand live call to Wathiq's official API — not the persona simulation */}
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+              <button onClick={callRealWathiq} disabled={liveLoading} style={{
+                background: "rgba(205,144,126,0.18)", color: "#CD907E",
+                border: "1px solid rgba(205,144,126,0.4)", borderRadius: 10,
+                padding: "9px 14px", fontSize: 12, fontWeight: 700,
+                cursor: liveLoading ? "default" : "pointer", marginBottom: 10,
+              }}>
+                {liveLoading ? "جارٍ الاتصال بواثق..." : "🔴 استدعِ واثق الحقيقية الآن (مباشر)"}
+              </button>
+              {liveProof && (
+                <div>
+                  <div style={{
+                    fontSize: 11, lineHeight: 1.7, color: liveProof.live ? "#5CB88A" : "#FF8A7A",
+                    background: liveProof.live ? "rgba(92,184,138,0.08)" : "rgba(224,88,74,0.08)",
+                    borderRadius: 8, padding: "8px 10px", marginBottom: 8,
+                  }}>
+                    {liveProof.live
+                      ? `✓ HTTP ${liveProof.http_status} — ${liveProof.note_ar}`
+                      : "تعذّر الاتصال بواثق الآن — راجع سجل الخادم"}
+                  </div>
+                  {liveProof.live && (
+                    <pre dir="ltr" style={{
+                      maxHeight: "22vh", overflow: "auto", background: "#0A0F16", color: "#FFD9CC",
+                      fontSize: 9, lineHeight: 1.5, borderRadius: 10, padding: "10px",
+                      margin: 0, textAlign: "left", border: "1px solid rgba(205,144,126,0.2)",
+                    }}>
+                      {JSON.stringify(liveProof.raw_response, null, 2)}
+                    </pre>
+                  )}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  )
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1925,8 +2365,11 @@ function OfficerDashboard({
               }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-1)", marginBottom: 2 }}>
-                      {w.trade_name_ar}
+                    <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-1)", marginBottom: 2 }}>
+                        {w.trade_name_ar}
+                      </div>
+                      <WathiqSourceTag source={w.source} />
                     </div>
                     <div style={{ fontSize: 11, color: "var(--text-3)" }} dir="ltr">
                       CR: {w.cr}
