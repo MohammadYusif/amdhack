@@ -49,8 +49,11 @@ on March 26, 2026. Mihan is the first to bring this into a commercial bank term 
 │       ├── config.ts                 # API URL + brand colors + tier config
 │       ├── types.ts                  # TypeScript interfaces for all API responses
 │       └── api.ts                    # Typed fetch helpers for all backend endpoints
+├── README.md                         # Full project + demo documentation (repo root, rendered by GitHub)
+├── demo_screenshots/                 # 15-shot demo walkthrough used in the README
 ├── docs/
-│   ├── README.md                     # Full project + demo documentation
+│   ├── README.md                     # Pointer stub → root README
+│   ├── assets/mihan-logo.png         # Brand logo (used in README header)
 │   └── CLAUDE.md                     # This file — Claude Code project context
 └── start.ps1                         # Windows startup script — done
 ```
