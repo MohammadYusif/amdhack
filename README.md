@@ -158,6 +158,16 @@ Two engine versions are demo-toggleable: **v1** (Phase 1 rule-based) and **v2 �
 - **Cash Flow History Statement** — the downloadable PDF is deliberately *not* named "Proof of Income" (a legally distinct document that would create issuer liability). It contains no credit score and no SIMAH data.
 - **No auto-approval** — every loan decision routes through the officer dashboard.
 
+### 📚 The regulatory homework
+
+None of the above is guesswork — the full research is in the repo:
+
+| Document | What it covers |
+|---|---|
+| [Research Brief v6](docs/research/Mihan_Research_Brief_v6.pdf) | Market sizing (48 verified sources), scoring methodology, revenue model, competitive analysis, anticipated judge objections |
+| [Final Regulatory Clearance](docs/research/Mihan_Final_Regulatory_Clearance.pdf) | Feature-by-feature verdict on what is deployable **today** under Alinma's existing license vs. what needs SAMA approval, and the exact path for each |
+| [Full Assessment Report](docs/research/Mihan_Full_Assessment_Report.pdf) | Sample generated end-to-end assessment output |
+
 ---
 
 ## Quick Start
@@ -271,7 +281,9 @@ Base URL: `http://localhost:9000`
 │   ├── components/             # Shared UI
 │   └── lib/                    # config · types · typed API helpers
 ├── demo_screenshots/           # Full 15-shot walkthrough (used above)
-├── docs/                       # Extended docs + assets (logo)
+├── docs/
+│   ├── assets/                 # Brand assets (logo)
+│   └── research/               # Research brief · regulatory clearance · sample report (PDF)
 └── start.ps1                   # One-command Windows startup
 ```
 
