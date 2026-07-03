@@ -141,9 +141,11 @@ Defined in `lib/config.ts` — set it in `frontend/.env.local` for local dev or
 `frontend/.env.production.example` for production deployment.
 
 ### Lean transaction determinism
-`lean_simulation.py` seeds `random.Random` from `hash(profile_id) & 0xFFFFFFFF`,
-so every call to `generate_transactions("mohammad")` returns identical amounts.
-This makes VANC calculations and the income chart consistent across all API calls.
+`lean_simulation.py` seeds `random.Random` from `zlib.crc32(profile_id.encode())`,
+so every call to `generate_transactions("mohammad")` returns identical amounts —
+across API calls AND across backend restarts. (It previously used built-in
+`hash()`, which is randomized per process and silently changed VANC scores on
+every restart. Never reintroduce `hash()` for seeding.)
 
 ---
 
