@@ -233,6 +233,7 @@ export default function ProfileDemoPage() {
   const [phase, setPhase] = useState<Phase>("home")
   const [onboardingStep, setOnboardingStep] = useState<OnboardingStep>("consent")
   const [completedSteps, setCompletedSteps] = useState(0)
+  const [fraudAlert, setFraudAlert] = useState<string | null>(null)
   const [assessment, setAssessment] = useState<FullAssessment | null>(null)
   const [explanation, setExplanation] = useState("")
   const [roadmap, setRoadmap] = useState<Roadmap | null>(null)
@@ -322,11 +323,17 @@ export default function ProfileDemoPage() {
       ])
       setCompletedSteps(3)
 
-      // Step 4 — Wathiq
-      await Promise.all([
+      // Step 4 — Wathiq (risk flags surface here, mid-scan)
+      const [step4Res] = await Promise.all([
         fetch(`${API}/profiles/${profileId}/pipeline/step4`),
         new Promise(r => setTimeout(r, STEP_MIN_MS)),
       ])
+      const step4Data = await (step4Res as Response).json()
+      if (step4Data.has_risk_flags) {
+        const flagged = (step4Data.results as { declared_name?: string; risk_flag?: string }[])
+          .find(w => w.risk_flag)
+        setFraudAlert(flagged?.declared_name ?? "")
+      }
       setCompletedSteps(4)
 
       // Step 5 — Scoring (VANC)
@@ -425,7 +432,7 @@ export default function ProfileDemoPage() {
           />
         )}
         {phase === "scanning" && (
-          <ScanningPhase key="scanning" completedSteps={completedSteps} />
+          <ScanningPhase key="scanning" completedSteps={completedSteps} fraudAlert={fraudAlert} />
         )}
         {phase === "cashflow" && (
           <CashFlowReveal
@@ -894,7 +901,7 @@ function OnboardingPhase({ step, onNafath, onCancel }: {
 // ═══════════════════════════════════════════════════════════════
 // SCREEN 4 — PIPELINE ANIMATION
 // ═══════════════════════════════════════════════════════════════
-function ScanningPhase({ completedSteps }: { completedSteps: number }) {
+function ScanningPhase({ completedSteps, fraudAlert }: { completedSteps: number; fraudAlert: string | null }) {
   const progress = (completedSteps / 5) * 100
 
   return (
@@ -943,6 +950,33 @@ function ScanningPhase({ completedSteps }: { completedSteps: number }) {
 
       {/* Steps */}
       <div style={{ flex: 1, padding: "4px 20px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* Fraud beat — Wathiq risk flag surfaces the moment step 4 lands */}
+        <AnimatePresence>
+          {fraudAlert !== null && completedSteps >= 4 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, height: 0 }}
+              animate={{ opacity: 1, scale: 1, height: "auto" }}
+              transition={{ duration: 0.4 }}
+              style={{
+                background: "rgba(212,144,10,0.14)",
+                border: "1px solid rgba(212,144,10,0.5)",
+                borderRadius: 14, padding: "12px 14px",
+                display: "flex", gap: 10, alignItems: "flex-start",
+              }}
+            >
+              <span style={{ fontSize: 18, lineHeight: 1 }}>⚠️</span>
+              <div>
+                <div style={{ color: "#F0B849", fontSize: 12.5, fontWeight: 800, marginBottom: 3 }}>
+                  واثق: علامة خطر — احتمال شركة صورية
+                </div>
+                <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 11, lineHeight: 1.6 }}>
+                  {fraudAlert ? `«${fraudAlert}» — ` : ""}سجل تجاري عمره أقل من 12 شهراً.
+                  سيُعرض على مسؤول الائتمان مع كامل الملف — لا رفض آلي.
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         {PIPELINE_STEPS.map((step, i) => {
           const done = i < completedSteps
           const active = i === completedSteps && completedSteps < 5
@@ -1070,8 +1104,8 @@ function ResultPhase({
 
   const FACTORS = [
     { key: "expense_discipline",   label: "انضباط المصروفات", weight: "30%", source: "تصنيف المعاملات — Lean AIS" },
-    { key: "income_stability",     label: "استقرار الدخل",    weight: "25%", source: "تذبذب الدخل — ١٨ شهر Lean" },
-    { key: "client_diversity",     label: "تنوع العملاء",    weight: "20%", source: "تركيز المصادر — مؤشر HHI" },
+    { key: "income_stability",     label: "استقرار الدخل",    weight: "25%", source: "⚡ محسوب لحظياً من المعاملات — CV" },
+    { key: "client_diversity",     label: "تنوع العملاء",    weight: "20%", source: "⚡ محسوب لحظياً — مؤشر HHI" },
     { key: "savings_behavior",     label: "سلوك الادخار",    weight: "15%", source: "رصيد نهاية الشهر — Lean" },
     { key: "contract_verification",label: "توثيق العقود",    weight: "10%", source: "السجلات التجارية — Wathiq" },
   ]
@@ -1792,7 +1826,21 @@ function BehindTheScenesButton({ profileId }: { profileId: string }) {
     `GET /profiles/${profileId}/pipeline/step3   → SIMAH`,
     `GET /profiles/${profileId}/pipeline/step4   → Wathiq`,
     `GET /profiles/${profileId}/pipeline/step5   → Mihan VANC`,
+    `GET /profiles/${profileId}/factor-analysis  → HHI + CV live`,
   ]
+
+  async function showFactorMath() {
+    setLoading(true)
+    try {
+      const res = await fetch(`${API}/profiles/${profileId}/factor-analysis`)
+      const j = await res.json()
+      setRaw(JSON.stringify(j, null, 2))
+    } catch {
+      setRaw("تعذّر الجلب — تأكد أن الخادم يعمل على المنفذ 9000")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <>
@@ -1819,7 +1867,12 @@ function BehindTheScenesButton({ profileId }: { profileId: string }) {
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <div style={{ color: "#fff", fontSize: 15, fontWeight: 800 }}>بيانات حقيقية — لا قيم ثابتة</div>
+              <div>
+                <div style={{ color: "#fff", fontSize: 15, fontWeight: 800 }}>بيانات حقيقية — لا قيم ثابتة</div>
+                <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 10, marginTop: 2 }} dir="ltr">
+                  Real data — nothing hardcoded
+                </div>
+              </div>
               <button onClick={() => setOpen(false)} style={{
                 background: "rgba(255,255,255,0.1)", color: "#fff", border: "none",
                 borderRadius: 8, padding: "6px 12px", fontSize: 12, cursor: "pointer",
@@ -1849,7 +1902,7 @@ function BehindTheScenesButton({ profileId }: { profileId: string }) {
             </pre>
 
             {/* Real, on-demand live call to Wathiq's official API — not the persona simulation */}
-            <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button onClick={callRealWathiq} disabled={liveLoading} style={{
                 background: "rgba(205,144,126,0.18)", color: "#CD907E",
                 border: "1px solid rgba(205,144,126,0.4)", borderRadius: 10,
@@ -1857,6 +1910,15 @@ function BehindTheScenesButton({ profileId }: { profileId: string }) {
                 cursor: liveLoading ? "default" : "pointer", marginBottom: 10,
               }}>
                 {liveLoading ? "جارٍ الاتصال بواثق..." : "🔴 استدعِ واثق الحقيقية الآن (مباشر)"}
+              </button>
+              {/* Live factor derivation — CV + HHI recomputed from transactions on demand */}
+              <button onClick={showFactorMath} disabled={loading} style={{
+                background: "rgba(92,184,138,0.14)", color: "#5CB88A",
+                border: "1px solid rgba(92,184,138,0.4)", borderRadius: 10,
+                padding: "9px 14px", fontSize: 12, fontWeight: 700,
+                cursor: loading ? "default" : "pointer", marginBottom: 10,
+              }}>
+                ⚡ أرِني حساب العوامل (CV + HHI)
               </button>
               {liveProof && (
                 <div>

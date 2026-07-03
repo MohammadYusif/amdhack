@@ -132,8 +132,8 @@ The demo runs as a mobile-first phone simulation in the browser. Walk through it
 | Factor | Weight | What it measures | Data source |
 |---|---|---|---|
 | Expense Discipline | 30% | Expense-to-income ratio, spending consistency | Lean AIS transaction classification |
-| Income Stability | 25% | Month-over-month income variance | 18 months of Lean AIS deposits |
-| Client Diversity | 20% | HHI concentration across income sources | Recurring-sender analysis |
+| Income Stability | 25% | Month-over-month income variance | ⚡ **Computed live**: CV over a zero-filled 18-month window |
+| Client Diversity | 20% | HHI concentration across income sources | ⚡ **Computed live**: HHI over income senders |
 | Savings Behavior | 15% | Consistent positive end-of-month balance | Lean AIS balance history |
 | Contract Verification | 10% | Active, verified CRs for declared clients | **Wathiq** — Ministry of Commerce |
 
@@ -146,6 +146,8 @@ The demo runs as a mobile-first phone simulation in the browser. Walk through it
 | 🔴 Building | < 55 | No loan — score-improvement roadmap |
 
 Two engine versions are demo-toggleable: **v1** (Phase 1 rule-based) and **v2 — VANC** (Volatility-Adjusted Net Cash flow).
+
+The ⚡ factors are recomputed from the transaction data on every request — income gaps count as zero-income months (they inflate volatility instead of hiding in the average), and each factor carries a provenance label. `GET /profiles/{id}/factor-analysis` exposes the full working: CV, HHI, income shares, and the monthly buckets. The "خلف الكواليس" panel shows it on demand.
 
 ---
 
@@ -240,6 +242,7 @@ Base URL: `http://localhost:9000`
 | GET | `/profiles/{id}/explanation?lang=ar\|en` | Claude-generated explanation |
 | GET | `/profiles/{id}/lean-transactions` | Lean AIS transaction history |
 | GET | `/profiles/{id}/wathiq` | Wathiq client verification (live-first, simulated fallback) |
+| GET | `/profiles/{id}/factor-analysis` | **Live factor derivation** — CV + HHI recomputed from transactions, with evidence |
 | GET | `/wathiq-live-proof?cr=` | **On-demand real call to the live Wathiq API** — raw response + call metadata |
 | GET | `/profiles/{id}/simah` | SIMAH thin-file report |
 | GET | `/profiles/{id}/roadmap` | Score-improvement plan |
@@ -273,6 +276,7 @@ Base URL: `http://localhost:9000`
 ├── backend/
 │   ├── main.py                 # All API endpoints (incl. /wathiq-live-proof)
 │   ├── scoring.py              # 5-factor engine: Phase 1 + VANC
+│   ├── factor_analysis.py      # ⚡ Live factor derivation from transactions (CV + HHI)
 │   ├── wathiq_api.py           # 🟢 LIVE Wathiq client — real gateway, graceful fallback
 │   ├── wathiq_simulation.py    # Curated fallback data (live-first via wathiq_api)
 │   ├── lean_simulation.py      # Deterministic Lean AIS transactions
@@ -293,6 +297,7 @@ Base URL: `http://localhost:9000`
 ├── demo_screenshots/           # Full 15-shot walkthrough (used above)
 ├── docs/
 │   ├── assets/                 # Brand assets (logo)
+│   ├── pitch/                  # Demo script · deck outline · demo-day checklist
 │   └── research/               # Research brief · regulatory clearance · sample report (PDF)
 ├── docker-compose.yml          # One-command Docker startup (both services)
 └── start.ps1                   # One-command Windows startup

@@ -18,6 +18,7 @@ from profiles import PROFILES, PROFILE_ORDER
 from scoring import calculate_score, calculate_score_vanc
 from database import init_db, append_audit_log, get_audit_log
 from lean_simulation import generate_transactions, get_declared_clients
+from factor_analysis import derive_factors, monthly_income_buckets
 from wathiq_simulation import verify_profile_clients, verify_cr
 from simah_simulation import get_simah_report
 from improvement_roadmap import generate_roadmap
@@ -66,13 +67,8 @@ def list_profiles():
 
 
 def _monthly_buckets_from_transactions(profile_id: str) -> list[int]:
-    """Aggregate simulated Lean transactions into per-month totals for VANC input."""
-    transactions = generate_transactions(profile_id)
-    buckets: dict = {}
-    for tx in transactions:
-        m_key = tx["date"][:7]
-        buckets[m_key] = buckets.get(m_key, 0) + tx["amount"]
-    return list(buckets.values())
+    """Zero-filled per-month totals for VANC input (see factor_analysis)."""
+    return monthly_income_buckets(profile_id)
 
 
 @app.get("/profiles/{profile_id}/score")
@@ -81,10 +77,11 @@ def get_score(profile_id: str, version: str = "v1"):
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
 
+    factors, _ = derive_factors(profile)
     if version == "v2":
-        score = calculate_score_vanc(profile.factor_inputs, _monthly_buckets_from_transactions(profile_id))
+        score = calculate_score_vanc(factors, _monthly_buckets_from_transactions(profile_id))
     else:
-        score = calculate_score(profile.factor_inputs, profile.worst_month_income)
+        score = calculate_score(factors, profile.worst_month_income)
 
     append_audit_log(
         profile_id=profile.id,
@@ -132,7 +129,7 @@ def request_human_review(profile_id: str, body: HumanReviewRequest):
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
 
-    score = calculate_score(profile.factor_inputs, profile.worst_month_income)
+    score = calculate_score(derive_factors(profile)[0], profile.worst_month_income)
 
     append_audit_log(
         profile_id=profile.id,
@@ -216,6 +213,29 @@ def wathiq_live_proof(cr: str | None = None):
     return fetch_live_proof(cr or LIVE_PROOF_SAMPLE_CR)
 
 
+@app.get("/profiles/{profile_id}/factor-analysis")
+def factor_analysis(profile_id: str):
+    """
+    Shows exactly HOW each scoring factor was obtained: income_stability
+    and client_diversity are computed live from the Lean AIS transaction
+    data (CV over a zero-filled income window; HHI over income senders),
+    with the intermediate numbers exposed. The rest carry their
+    provenance labels. Drives the "behind the scenes" transparency panel.
+    """
+    profile = PROFILES.get(profile_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    factors, evidence = derive_factors(profile)
+    return {
+        "profile_id": profile_id,
+        "effective_factors": factors.model_dump(),
+        "evidence": evidence,
+        "monthly_income_buckets": monthly_income_buckets(profile_id),
+        "note": "income_stability and client_diversity are recomputed from "
+                "transaction data on every call — nothing pre-baked.",
+    }
+
+
 @app.get("/profiles/{profile_id}/simah")
 def simah_report(profile_id: str):
     """Retrieve SIMAH credit bureau report."""
@@ -223,7 +243,7 @@ def simah_report(profile_id: str):
         raise HTTPException(status_code=404, detail="Profile not found")
     report = get_simah_report(profile_id)
     score = calculate_score(
-        PROFILES[profile_id].factor_inputs,
+        derive_factors(PROFILES[profile_id])[0],
         PROFILES[profile_id].worst_month_income,
     )
     exception_triggered = (
@@ -255,7 +275,7 @@ def score_roadmap(profile_id: str):
     profile = PROFILES.get(profile_id)
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
-    score = calculate_score(profile.factor_inputs, profile.worst_month_income)
+    score = calculate_score(derive_factors(profile)[0], profile.worst_month_income)
     roadmap = generate_roadmap(profile_id, score)
     return roadmap
 
@@ -282,7 +302,7 @@ def rejection_check(data: dict):
 def health_check():
     """Deployment health check — verifies DB, profiles, and scoring engine."""
     test_score = calculate_score(
-        PROFILES["mohammad"].factor_inputs,
+        derive_factors(PROFILES["mohammad"])[0],
         PROFILES["mohammad"].worst_month_income,
     )
     return {
@@ -386,13 +406,14 @@ def pipeline_step5(profile_id: str, version: str = "v2"):
     profile = PROFILES.get(profile_id)
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
+    factors, _ = derive_factors(profile)
     if version == "v2":
         score = calculate_score_vanc(
-            profile.factor_inputs,
+            factors,
             _monthly_buckets_from_transactions(profile_id),
         )
     else:
-        score = calculate_score(profile.factor_inputs, profile.worst_month_income)
+        score = calculate_score(factors, profile.worst_month_income)
     append_audit_log(
         profile_id=profile.id,
         profile_name=profile.name_en,
@@ -430,10 +451,11 @@ def full_assessment(profile_id: str, version: str = "v1"):
     transactions = generate_transactions(profile_id)
     wathiq = verify_profile_clients(profile_id)
 
+    factors, factor_evidence = derive_factors(profile)
     if version == "v2":
-        score = calculate_score_vanc(profile.factor_inputs, _monthly_buckets_from_transactions(profile_id))
+        score = calculate_score_vanc(factors, _monthly_buckets_from_transactions(profile_id))
     else:
-        score = calculate_score(profile.factor_inputs, profile.worst_month_income)
+        score = calculate_score(factors, profile.worst_month_income)
 
     exception_triggered = (
         simah["exception_sandbox_applicable"] and score.composite >= 75
@@ -469,6 +491,7 @@ def full_assessment(profile_id: str, version: str = "v1"):
             "step5_scoring":  {"status": "COMPLETE", "composite": score.composite, "tier": score.tier, "engine_version": version},
         },
         "score": score.model_dump(),
+        "factor_analysis": factor_evidence,
         "simah": simah,
         "wathiq_results": wathiq,
         "exception_sandbox_triggered": exception_triggered,

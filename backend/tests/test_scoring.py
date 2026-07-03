@@ -21,6 +21,12 @@ from scoring import (
 )
 from profiles import PROFILES
 from lean_simulation import generate_transactions
+from factor_analysis import (
+    client_diversity,
+    derive_factors,
+    income_stability,
+    monthly_income_buckets,
+)
 
 
 def uniform_factors(value: float) -> FactorScores:
@@ -139,21 +145,67 @@ class TestVANC:
 
 
 class TestPersonas:
-    """The three demo personas must land in their scripted tiers."""
+    """The three demo personas must land in their scripted tiers — scored
+    through the real pipeline: factors derived from transaction data."""
+
+    def _score(self, profile_id):
+        p = PROFILES[profile_id]
+        factors, _ = derive_factors(p)
+        return calculate_score(factors, p.worst_month_income)
 
     def test_mohammad_is_green(self):
-        p = PROFILES["mohammad"]
-        assert calculate_score(p.factor_inputs, p.worst_month_income).tier == "GREEN"
+        assert self._score("mohammad").tier == "GREEN"
 
     def test_noura_is_yellow(self):
-        p = PROFILES["noura"]
-        assert calculate_score(p.factor_inputs, p.worst_month_income).tier == "YELLOW"
+        assert self._score("noura").tier == "YELLOW"
 
     def test_fahad_is_building(self):
-        p = PROFILES["fahad"]
-        score = calculate_score(p.factor_inputs, p.worst_month_income)
+        score = self._score("fahad")
         assert score.tier == "BUILDING"
         assert score.loan is None
+
+
+class TestFactorAnalysis:
+    """Transaction-derived factors: CV-based stability, HHI-based diversity."""
+
+    def test_income_gaps_are_zero_filled(self):
+        # Fahad skips ~25% of months — the window must show them as zeros
+        buckets = monthly_income_buckets("fahad")
+        assert len(buckets) == 18
+        assert any(b == 0 for b in buckets)
+
+    def test_income_gaps_hurt_stability(self):
+        # Fahad's per-payment amounts are stable; only the zero-filled
+        # window exposes his real volatility (missing months)
+        fahad_score, fahad_ev = income_stability("fahad")
+        mohammad_score, mohammad_ev = income_stability("mohammad")
+        assert fahad_ev["months_with_income"] < 18
+        assert mohammad_ev["months_with_income"] == 18
+        assert fahad_score < mohammad_score
+
+    def test_diversity_reflects_client_concentration(self):
+        # 1 client → HHI = 1.0 → minimum diversity
+        fahad_score, fahad_ev = client_diversity("fahad")
+        mohammad_score, mohammad_ev = client_diversity("mohammad")
+        assert fahad_ev["hhi"] == 1.0
+        assert fahad_ev["effective_clients"] == 1.0
+        assert mohammad_ev["senders"] == 3
+        assert fahad_score < mohammad_score
+
+    def test_income_shares_sum_to_one(self):
+        _, ev = client_diversity("mohammad")
+        assert sum(ev["income_shares"].values()) == pytest.approx(1.0, abs=0.01)
+
+    def test_derived_factors_carry_provenance(self):
+        _, evidence = derive_factors(PROFILES["mohammad"])
+        assert evidence["income_stability"]["provenance"] == "COMPUTED_FROM_LEAN_AIS"
+        assert evidence["client_diversity"]["provenance"] == "COMPUTED_FROM_LEAN_AIS"
+        assert evidence["contract_verification"]["provenance"] == "WATHIQ_MINISTRY_OF_COMMERCE"
+
+    def test_derivation_is_deterministic(self):
+        f1, _ = derive_factors(PROFILES["noura"])
+        f2, _ = derive_factors(PROFILES["noura"])
+        assert f1 == f2
 
 
 class TestLeanSimulationDeterminism:
