@@ -278,12 +278,14 @@ Base URL: `http://localhost:9000`
 │   ├── main.py                 # All API endpoints (incl. /wathiq-live-proof)
 │   ├── scoring.py              # 5-factor engine: Phase 1 + VANC
 │   ├── factor_analysis.py      # ⚡ Live factor derivation from transactions (CV + HHI)
+│   ├── ai_privacy.py           # 🔒 Zero-PII payload builder for AI explanations (test-enforced)
 │   ├── wathiq_api.py           # 🟢 LIVE Wathiq client — real gateway, graceful fallback
 │   ├── wathiq_simulation.py    # Curated fallback data (live-first via wathiq_api)
 │   ├── lean_simulation.py      # Deterministic Lean AIS transactions
 │   ├── simah_simulation.py     # SIMAH thin-file simulation
 │   ├── models.py · profiles.py · database.py · pdf_gen.py
 │   ├── improvement_roadmap.py · explanations.json · generate_cache.py
+│   ├── tests/                  # 34 pytest cases — tiers, DBR, VANC, factor derivation, PII exclusion
 │   ├── requirements.txt · Dockerfile
 │   └── .env                    # (gitignored) Wathiq API credentials — see Quick Start
 ├── frontend/
@@ -298,7 +300,8 @@ Base URL: `http://localhost:9000`
 ├── demo_screenshots/           # Full 15-shot walkthrough (used above)
 ├── docs/
 │   ├── assets/                 # Brand assets (logo)
-│   ├── pitch/                  # Demo script · deck outline · demo-day checklist
+│   ├── pitch/                  # Demo script · deck outline · checklist · cheat sheet ·
+│   │                           #   72h plan · unit economics · screenshots/ · backup video (.webm)
 │   └── research/               # Research brief · regulatory clearance · sample report (PDF)
 ├── docker-compose.yml          # One-command Docker startup (both services)
 └── start.ps1                   # One-command Windows startup

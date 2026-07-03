@@ -13,7 +13,7 @@ empty SIMAH files and no Mudad salary record.
 - Docker: `docker compose up --build` (both services)
 - Windows native: `.\start.ps1`
 - Manual: `cd backend && python -m uvicorn main:app --reload --port 9000` + `cd frontend && npm run dev`
-- Tests: `cd backend && python -m pytest tests/` (scoring engine — must stay green)
+- Tests: `cd backend && python -m pytest tests/` (34 cases: scoring, factor derivation, PII exclusion — must stay green)
 - CI: `.github/workflows/ci.yml` runs tests + API smoke + docker build on push
 
 ## Key facts
@@ -30,6 +30,17 @@ empty SIMAH files and no Mudad salary record.
   the built-in `hash()` (randomized per process → scores would change across restarts).
 - Frontend API base is `NEXT_PUBLIC_API_URL` (default `http://localhost:9000`),
   defined once in `frontend/lib/config.ts`.
+- **Factors are derived, not hardcoded**: `income_stability` (CV over zero-filled
+  18-month window) and `client_diversity` (HHI) are computed live from transactions
+  in `backend/factor_analysis.py` on every scoring call. Persona composites:
+  mohammad 81.2 GREEN / noura 57.9 YELLOW / fahad 36.5 BUILDING.
+- **AI payload is zero-PII by construction**: `backend/ai_privacy.py` is the single
+  source of truth for what reaches Claude (five scores + tier, nothing else) —
+  used by both `generate_cache.py` and `/ai-privacy-proof`. Never add profile
+  fields to `build_ai_prompt`; `tests/test_ai_privacy.py` fails on any leak.
+- Demo-day materials live in `docs/pitch/`: script, deck outline, checklist,
+  team cheat sheet, 72h on-site plan, unit economics, deck screenshots, and
+  the backup video (`mihan_demo_backup.webm`).
 
 ## Regulatory constraints (do not deviate)
 
