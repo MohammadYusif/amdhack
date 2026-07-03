@@ -82,6 +82,20 @@ def calculate_score_vanc(
 ) -> MihanScore:
     """Phase 2 formula: underwriting_income = μ - (1.5 × σ)"""
     non_zero = [x for x in monthly_incomes if x > 0]
+    if not non_zero:
+        # No income at all — hard BUILDING floor, no loan regardless of factors
+        return MihanScore(
+            composite=0.0,
+            tier="BUILDING",
+            factors=factors,
+            loan=None,
+            worst_month_income=0,
+            repayment_capacity=0,
+            max_installment=0,
+            phase="phase2",
+            dbr_cap_pct=DBR_CAP,
+            vanc_income=0,
+        )
     mu = statistics.mean(non_zero)
     sigma = statistics.stdev(non_zero) if len(non_zero) > 1 else 0
     underwriting_income = max(0, mu - (1.5 * sigma))

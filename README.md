@@ -174,8 +174,8 @@ None of the above is guesswork — the full research is in the repo:
 
 ### Prerequisites
 
-- Python 3.10+ · Node.js 18+
-- `pip install fastapi uvicorn reportlab pydantic python-dotenv requests`
+- Python 3.10+ · Node.js 18+ (or just Docker — see Option C)
+- `pip install -r backend/requirements.txt`
 - `cd frontend && npm install`
 
 ### Option A — one command (Windows)
@@ -195,6 +195,14 @@ python -m uvicorn main:app --reload --port 9000
 cd frontend
 npm run dev
 ```
+
+### Option C — Docker (any OS, no Python/Node needed)
+
+```bash
+docker compose up --build
+```
+
+Builds and starts both services (frontend production build + backend). The Wathiq credentials in `backend/.env` are picked up automatically if the file exists — without it the live-proof button falls back to simulation, same as running natively. The SQLite audit log lives inside the container, so it resets on rebuild (fine for the demo).
 
 | Service | URL |
 |---|---|
@@ -248,7 +256,7 @@ Base URL: `http://localhost:9000`
 
 | Layer | Technology |
 |---|---|
-| Backend | FastAPI (Python) · SQLite audit log · ReportLab PDF |
+| Backend | FastAPI (Python) · SQLite audit log · fpdf2 PDF (Arabic RTL + QR) |
 | Frontend | Next.js 16 App Router · React 19 · Tailwind CSS 4 · Framer Motion |
 | Scoring | Custom VANC engine (Volatility-Adjusted Net Cash flow) |
 | Company verification | **Wathiq — Ministry of Commerce (live API)** |
@@ -271,6 +279,7 @@ Base URL: `http://localhost:9000`
 │   ├── simah_simulation.py     # SIMAH thin-file simulation
 │   ├── models.py · profiles.py · database.py · pdf_gen.py
 │   ├── improvement_roadmap.py · explanations.json · generate_cache.py
+│   ├── requirements.txt · Dockerfile
 │   └── .env                    # (gitignored) Wathiq API credentials — see Quick Start
 ├── frontend/
 │   ├── app/
@@ -279,11 +288,13 @@ Base URL: `http://localhost:9000`
 │   │   ├── apply/ · banker/ · mihan/
 │   │   └── globals.css         # Alinma brand tokens
 │   ├── components/             # Shared UI
-│   └── lib/                    # config · types · typed API helpers
+│   ├── lib/                    # config · types · typed API helpers
+│   └── Dockerfile              # Multi-stage Next.js standalone build
 ├── demo_screenshots/           # Full 15-shot walkthrough (used above)
 ├── docs/
 │   ├── assets/                 # Brand assets (logo)
 │   └── research/               # Research brief · regulatory clearance · sample report (PDF)
+├── docker-compose.yml          # One-command Docker startup (both services)
 └── start.ps1                   # One-command Windows startup
 ```
 

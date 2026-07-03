@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+mihan.db
+test_proof.pdf
+.env
+Dockerfile
+.dockerignore

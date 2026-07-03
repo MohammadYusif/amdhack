@@ -5,6 +5,7 @@ In production this would be replaced by a real Lean Technologies AIS API call.
 """
 from datetime import date, timedelta
 import random
+import zlib
 from typing import TypedDict
 
 
@@ -51,9 +52,10 @@ def generate_transactions(profile_id: str, months: int = 18) -> list[Transaction
     if not clients:
         return []
 
-    # Deterministic seed from profile_id so the same profile
-    # always returns the same transaction history across all API calls.
-    rng = random.Random(hash(profile_id) & 0xFFFFFFFF)
+    # Deterministic seed from profile_id so the same profile always returns
+    # the same transaction history across all API calls AND across backend
+    # restarts (built-in hash() is randomized per process — crc32 is not).
+    rng = random.Random(zlib.crc32(profile_id.encode()))
 
     transactions: list[Transaction] = []
     today = date.today()

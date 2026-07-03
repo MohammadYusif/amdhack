@@ -1,6 +1,8 @@
 import json
 import os
 import sys
+import zlib
+from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,7 +22,20 @@ from wathiq_simulation import verify_profile_clients, verify_cr
 from simah_simulation import get_simah_report
 from improvement_roadmap import generate_roadmap
 
-app = FastAPI(title="Mihan API", version="1.0.0")
+EXPLANATIONS_PATH = Path(__file__).parent / "explanations.json"
+_explanations: dict = {}
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    global _explanations
+    if EXPLANATIONS_PATH.exists():
+        _explanations = json.loads(EXPLANATIONS_PATH.read_text(encoding="utf-8"))
+    yield
+
+
+app = FastAPI(title="Mihan API", version="1.0.0", lifespan=lifespan)
 
 ALLOWED_ORIGINS = os.environ.get(
     "ALLOWED_ORIGINS",
@@ -34,18 +49,6 @@ app.add_middleware(
     allow_headers=["*"],
     allow_credentials=True,
 )
-
-EXPLANATIONS_PATH = Path(__file__).parent / "explanations.json"
-_explanations: dict = {}
-
-
-@app.on_event("startup")
-def startup():
-    init_db()
-    global _explanations
-    if EXPLANATIONS_PATH.exists():
-        _explanations = json.loads(EXPLANATIONS_PATH.read_text(encoding="utf-8"))
-
 
 @app.get("/profiles")
 def list_profiles():
@@ -299,12 +302,14 @@ def pipeline_step1(profile_id: str):
     """KYC + Virtual Core Banking Profile creation."""
     if profile_id not in PROFILES:
         raise HTTPException(status_code=404, detail="Profile not found")
+    # crc32 (not built-in hash) so the IBAN/ref stay identical across restarts
+    stable_id = zlib.crc32(profile_id.encode())
     return {
         "step": "step1_kyc",
         "status": "COMPLETE",
         "method": "Nafath biometric + Virtual Core Banking Profile",
-        "tech_iban": f"SA71 0800 0000 {hash(profile_id) % 10000:04d} 0000 0000",
-        "kyc_ref": f"KYC-{abs(hash(profile_id)) % 900000 + 100000}",
+        "tech_iban": f"SA71 0800 0000 {stable_id % 10000:04d} 0000 0000",
+        "kyc_ref": f"KYC-{stable_id % 900000 + 100000}",
     }
 
 

@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+pydantic
+python-dotenv
+requests
+fpdf2
+qrcode[pil]
+arabic-reshaper
+python-bidi
