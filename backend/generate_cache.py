@@ -14,41 +14,27 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from profiles import PROFILES, PROFILE_ORDER
-from scoring import calculate_score
-
-try:
-    import anthropic
-except ImportError:
-    print("Run: pip install anthropic")
-    sys.exit(1)
+# Shared with the live /ai-privacy-proof endpoint — the payload shown on
+# stage is built by the exact same code that talks to the API here.
+from ai_privacy import SYSTEM_PROMPT as SYSTEM, build_ai_prompt
 
 EXPLANATIONS_PATH = Path(__file__).parent / "explanations.json"
 MODEL = "claude-sonnet-4-6"
 
-SYSTEM = (
-    "أنت مساعد مالي متخصص في شرح قرارات التمويل للعملاء بأسلوب واضح وإيجابي. "
-    "اكتب فقرة واحدة باللغة العربية الفصحى، بأسلوب مهني ومحترم، تشرح فيها نتائج التقييم "
-    "الائتماني للعميل. لا تذكر اسم العميل. لا تذكر أرقام النتائج مباشرة. "
-    "الطول المثالي: 3-4 جمل."
-)
-
 
 def build_prompt(profile_id: str) -> str:
-    profile = PROFILES[profile_id]
-    score = calculate_score(profile.factor_inputs, profile.worst_month_income)
-    f = score.factors
-    return (
-        f"انضباط المصروفات: {f.expense_discipline}/100\n"
-        f"استقرار الدخل: {f.income_stability}/100\n"
-        f"تنوع العملاء: {f.client_diversity}/100\n"
-        f"سلوك الادخار: {f.savings_behavior}/100\n"
-        f"توثيق العقود: {f.contract_verification}/100\n"
-        f"النتيجة الإجمالية: {score.composite}/100\n"
-        f"التصنيف: {score.tier}\n"
-    )
+    return build_ai_prompt(PROFILES[profile_id])
 
 
 def main():
+    # Imported here, not at module level: tests import this module to
+    # verify prompt parity without needing the anthropic SDK installed.
+    try:
+        import anthropic
+    except ImportError:
+        print("Run: pip install anthropic")
+        sys.exit(1)
+
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         print("Set ANTHROPIC_API_KEY environment variable first.")

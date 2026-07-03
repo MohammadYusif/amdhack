@@ -1827,12 +1827,26 @@ function BehindTheScenesButton({ profileId }: { profileId: string }) {
     `GET /profiles/${profileId}/pipeline/step4   → Wathiq`,
     `GET /profiles/${profileId}/pipeline/step5   → Mihan VANC`,
     `GET /profiles/${profileId}/factor-analysis  → HHI + CV live`,
+    `GET /profiles/${profileId}/ai-privacy-proof → AI payload, zero PII`,
   ]
 
   async function showFactorMath() {
     setLoading(true)
     try {
       const res = await fetch(`${API}/profiles/${profileId}/factor-analysis`)
+      const j = await res.json()
+      setRaw(JSON.stringify(j, null, 2))
+    } catch {
+      setRaw("تعذّر الجلب — تأكد أن الخادم يعمل على المنفذ 9000")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function showAiPrivacyProof() {
+    setLoading(true)
+    try {
+      const res = await fetch(`${API}/profiles/${profileId}/ai-privacy-proof`)
       const j = await res.json()
       setRaw(JSON.stringify(j, null, 2))
     } catch {
@@ -1919,6 +1933,15 @@ function BehindTheScenesButton({ profileId }: { profileId: string }) {
                 cursor: loading ? "default" : "pointer", marginBottom: 10,
               }}>
                 ⚡ أرِني حساب العوامل (CV + HHI)
+              </button>
+              {/* PII proof — the literal payload the AI model receives (scores only) */}
+              <button onClick={showAiPrivacyProof} disabled={loading} style={{
+                background: "rgba(154,140,185,0.16)", color: "#BEB9F0",
+                border: "1px solid rgba(154,140,185,0.45)", borderRadius: 10,
+                padding: "9px 14px", fontSize: 12, fontWeight: 700,
+                cursor: loading ? "default" : "pointer", marginBottom: 10,
+              }}>
+                🔒 ماذا يصل للذكاء الاصطناعي؟ (صفر PII)
               </button>
               {liveProof && (
                 <div>

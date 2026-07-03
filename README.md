@@ -243,6 +243,7 @@ Base URL: `http://localhost:9000`
 | GET | `/profiles/{id}/lean-transactions` | Lean AIS transaction history |
 | GET | `/profiles/{id}/wathiq` | Wathiq client verification (live-first, simulated fallback) |
 | GET | `/profiles/{id}/factor-analysis` | **Live factor derivation** — CV + HHI recomputed from transactions, with evidence |
+| GET | `/profiles/{id}/ai-privacy-proof` | **AI privacy proof** — the literal payload sent to Claude (anonymized scores only, zero PII) |
 | GET | `/wathiq-live-proof?cr=` | **On-demand real call to the live Wathiq API** — raw response + call metadata |
 | GET | `/profiles/{id}/simah` | SIMAH thin-file report |
 | GET | `/profiles/{id}/roadmap` | Score-improvement plan |

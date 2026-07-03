@@ -19,6 +19,7 @@ from scoring import calculate_score, calculate_score_vanc
 from database import init_db, append_audit_log, get_audit_log
 from lean_simulation import generate_transactions, get_declared_clients
 from factor_analysis import derive_factors, monthly_income_buckets
+from ai_privacy import build_privacy_proof
 from wathiq_simulation import verify_profile_clients, verify_cr
 from simah_simulation import get_simah_report
 from improvement_roadmap import generate_roadmap
@@ -234,6 +235,20 @@ def factor_analysis(profile_id: str):
         "note": "income_stability and client_diversity are recomputed from "
                 "transaction data on every call — nothing pre-baked.",
     }
+
+
+@app.get("/profiles/{profile_id}/ai-privacy-proof")
+def ai_privacy_proof(profile_id: str):
+    """
+    Shows the literal, complete payload that reaches the AI explanation
+    model: five anonymized factor scores + tier. Built by the same code
+    path (ai_privacy.py) used for real generation, so the on-stage proof
+    cannot drift from reality. Drives the "خلف الكواليس" privacy button.
+    """
+    profile = PROFILES.get(profile_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return build_privacy_proof(profile)
 
 
 @app.get("/profiles/{profile_id}/simah")
