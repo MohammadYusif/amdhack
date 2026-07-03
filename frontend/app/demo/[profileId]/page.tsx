@@ -21,7 +21,7 @@ const PIPELINE_STEPS = [
   { key: "step1_kyc",      ar: "توثيق هوية نفاذ + Tech-IBAN",                   icon: "🪪" },
   { key: "step2_lean_ais", ar: "سحب معاملات Lean AIS — ٢٤ شهراً",               icon: "🏦" },
   { key: "step3_simah",    ar: "استعلام سجل SIMAH الائتماني",                    icon: "📋" },
-  { key: "step4_wathiq",   ar: "التحقق من العملاء عبر Wathiq",                   icon: "✅" },
+  { key: "step4_wathq",   ar: "التحقق من العملاء عبر Wathq",                   icon: "✅" },
   { key: "step5_scoring",  ar: "تشغيل محرك تحليل مِهَن",                         icon: "⚡" },
 ]
 
@@ -181,9 +181,9 @@ function ScoreGauge({ score, color }: { score: number; color: string }) {
   )
 }
 
-// ─── WathiqSourceTag — proves live vs simulated CR verification ──
-function WathiqSourceTag({ source }: { source?: "WATHIQ_LIVE" | "SIMULATED" }) {
-  if (source !== "WATHIQ_LIVE") return null
+// ─── WathqSourceTag — proves live vs simulated CR verification ──
+function WathqSourceTag({ source }: { source?: "WATHQ_LIVE" | "SIMULATED" }) {
+  if (source !== "WATHQ_LIVE") return null
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 3,
@@ -323,7 +323,7 @@ export default function ProfileDemoPage() {
       ])
       setCompletedSteps(3)
 
-      // Step 4 — Wathiq (risk flags surface here, mid-scan)
+      // Step 4 — Wathq (risk flags surface here, mid-scan)
       const [step4Res] = await Promise.all([
         fetch(`${API}/profiles/${profileId}/pipeline/step4`),
         new Promise(r => setTimeout(r, STEP_MIN_MS)),
@@ -950,7 +950,7 @@ function ScanningPhase({ completedSteps, fraudAlert }: { completedSteps: number;
 
       {/* Steps */}
       <div style={{ flex: 1, padding: "4px 20px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
-        {/* Fraud beat — Wathiq risk flag surfaces the moment step 4 lands */}
+        {/* Fraud beat — Wathq risk flag surfaces the moment step 4 lands */}
         <AnimatePresence>
           {fraudAlert !== null && completedSteps >= 4 && (
             <motion.div
@@ -1107,7 +1107,7 @@ function ResultPhase({
     { key: "income_stability",     label: "استقرار الدخل",    weight: "25%", source: "⚡ محسوب لحظياً من المعاملات — CV" },
     { key: "client_diversity",     label: "تنوع العملاء",    weight: "20%", source: "⚡ محسوب لحظياً — مؤشر HHI" },
     { key: "savings_behavior",     label: "سلوك الادخار",    weight: "15%", source: "رصيد نهاية الشهر — Lean" },
-    { key: "contract_verification",label: "توثيق العقود",    weight: "10%", source: "السجلات التجارية — Wathiq" },
+    { key: "contract_verification",label: "توثيق العقود",    weight: "10%", source: "السجلات التجارية — Wathq" },
   ]
 
   return (
@@ -1423,25 +1423,25 @@ function ResultPhase({
           )}
         </div>
 
-        {/* Wathiq */}
+        {/* Wathq */}
         <div style={{
           background: "var(--surface)", borderRadius: 18, padding: "14px 16px",
           marginBottom: 18, boxShadow: "var(--shadow-sm)",
         }}>
           <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 10 }}>
-            التحقق من العملاء — Wathiq
+            التحقق من العملاء — Wathq
           </div>
-          {assessment.wathiq_results.map((w, i) => (
+          {assessment.wathq_results.map((w, i) => (
             <div key={i} style={{
               display: "flex", justifyContent: "space-between", alignItems: "center",
               padding: "8px 0",
-              borderBottom: i < assessment.wathiq_results.length - 1 ? "1px solid var(--border)" : "none",
+              borderBottom: i < assessment.wathq_results.length - 1 ? "1px solid var(--border)" : "none",
             }}>
               <div>
                 <span style={{ fontSize: 13, color: "var(--text-1)", fontWeight: 500 }}>
                   {w.trade_name_ar}
                 </span>
-                <WathiqSourceTag source={w.source} />
+                <WathqSourceTag source={w.source} />
               </div>
               <span style={{
                 fontSize: 11, fontWeight: 600,
@@ -1808,10 +1808,10 @@ function BehindTheScenesButton({ profileId }: { profileId: string }) {
     }
   }
 
-  async function callRealWathiq() {
+  async function callRealWathq() {
     setLiveLoading(true)
     try {
-      const res = await fetch(`${API}/wathiq-live-proof`)
+      const res = await fetch(`${API}/wathq-live-proof`)
       setLiveProof(await res.json())
     } catch {
       setLiveProof({ live: false })
@@ -1824,7 +1824,7 @@ function BehindTheScenesButton({ profileId }: { profileId: string }) {
     `GET /profiles/${profileId}/pipeline/step1   → KYC نفاذ`,
     `GET /profiles/${profileId}/pipeline/step2   → Lean AIS`,
     `GET /profiles/${profileId}/pipeline/step3   → SIMAH`,
-    `GET /profiles/${profileId}/pipeline/step4   → Wathiq`,
+    `GET /profiles/${profileId}/pipeline/step4   → Wathq`,
     `GET /profiles/${profileId}/pipeline/step5   → Mihan VANC`,
     `GET /profiles/${profileId}/factor-analysis  → HHI + CV live`,
     `GET /profiles/${profileId}/ai-privacy-proof → AI payload, zero PII`,
@@ -1915,9 +1915,9 @@ function BehindTheScenesButton({ profileId }: { profileId: string }) {
               {loading ? "... جارٍ الجلب" : raw}
             </pre>
 
-            {/* Real, on-demand live call to Wathiq's official API — not the persona simulation */}
+            {/* Real, on-demand live call to Wathq's official API — not the persona simulation */}
             <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button onClick={callRealWathiq} disabled={liveLoading} style={{
+              <button onClick={callRealWathq} disabled={liveLoading} style={{
                 background: "rgba(205,144,126,0.18)", color: "#CD907E",
                 border: "1px solid rgba(205,144,126,0.4)", borderRadius: 10,
                 padding: "9px 14px", fontSize: 12, fontWeight: 700,
@@ -2306,9 +2306,9 @@ function OfficerDashboard({
                   pass: true,
                 },
                 {
-                  label: "تحقق Wathiq",
-                  sub: `${assessment.wathiq_results.length} عميل محللاً`,
-                  pass: !assessment.wathiq_results.some(w => w.risk_flag),
+                  label: "تحقق Wathq",
+                  sub: `${assessment.wathq_results.length} عميل محللاً`,
+                  pass: !assessment.wathq_results.some(w => w.risk_flag),
                 },
                 {
                   label: "سجل SIMAH",
@@ -2317,8 +2317,8 @@ function OfficerDashboard({
                 },
                 {
                   label: "تركيز مصادر الدخل",
-                  sub: `${assessment.wathiq_results.length} مصدر`,
-                  pass: assessment.wathiq_results.length >= 2,
+                  sub: `${assessment.wathq_results.length} مصدر`,
+                  pass: assessment.wathq_results.length >= 2,
                 },
               ].map((c, i) => (
                 <div key={i} style={{
@@ -2417,7 +2417,7 @@ function OfficerDashboard({
           </div>
         )}
 
-        {/* ── Row 6: Pipeline + Wathiq side by side ── */}
+        {/* ── Row 6: Pipeline + Wathq side by side ── */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 20 }}>
 
           {/* Pipeline */}
@@ -2440,13 +2440,13 @@ function OfficerDashboard({
             ))}
           </div>
 
-          {/* Wathiq */}
+          {/* Wathq */}
           <div style={{ background: "var(--surface)", borderRadius: 18, padding: "18px", boxShadow: "var(--shadow-sm)" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>توثيق العملاء — Wathiq</div>
-            {assessment.wathiq_results.map((w, i) => (
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>توثيق العملاء — Wathq</div>
+            {assessment.wathq_results.map((w, i) => (
               <div key={i} style={{
                 padding: "12px 0",
-                borderBottom: i < assessment.wathiq_results.length - 1 ? "1px solid var(--border)" : "none",
+                borderBottom: i < assessment.wathq_results.length - 1 ? "1px solid var(--border)" : "none",
               }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div>
@@ -2454,7 +2454,7 @@ function OfficerDashboard({
                       <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-1)", marginBottom: 2 }}>
                         {w.trade_name_ar}
                       </div>
-                      <WathiqSourceTag source={w.source} />
+                      <WathqSourceTag source={w.source} />
                     </div>
                     <div style={{ fontSize: 11, color: "var(--text-3)" }} dir="ltr">
                       CR: {w.cr}

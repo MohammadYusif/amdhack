@@ -164,7 +164,7 @@ export default function DemoPage() {
           <div style={{ marginTop: 28, textAlign: "center", paddingBottom: 8 }}>
             <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 4 }}>مدعوم بـ</div>
             <div style={{ display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
-              {["Open Banking · SAMA ٢٠٢٦", "Lean Technologies", "Wathiq"].map(s => (
+              {["Open Banking · SAMA ٢٠٢٦", "Lean Technologies", "Wathq"].map(s => (
                 <span key={s} style={{
                   fontSize: 11, color: "var(--text-3)",
                   background: "var(--surface)", border: "1px solid var(--border)",

@@ -36,7 +36,7 @@ export interface MihanScore {
   vanc_income: number | null
 }
 
-export interface WathiqResult {
+export interface WathqResult {
   cr: string
   trade_name_ar: string
   trade_name_en: string
@@ -47,7 +47,7 @@ export interface WathiqResult {
   message_ar: string
   message_en: string
   declared_name: string
-  source?: "WATHIQ_LIVE" | "SIMULATED"
+  source?: "WATHQ_LIVE" | "SIMULATED"
 }
 
 export interface SimahReport {
@@ -65,12 +65,12 @@ export interface FullAssessment {
     step1_kyc:      { status: string; method: string }
     step2_lean_ais: { status: string; transactions_pulled: number; months: number }
     step3_simah:    { status: string; file_type: string }
-    step4_wathiq:   { status: string; clients_verified: number; total_clients: number }
+    step4_wathq:   { status: string; clients_verified: number; total_clients: number }
     step5_scoring:  { status: string; composite: number; tier: string }
   }
   score: MihanScore
   simah: SimahReport
-  wathiq_results: WathiqResult[]
+  wathq_results: WathqResult[]
   exception_sandbox_triggered: boolean
   loan_recommendation: LoanRecommendation | null
   next_step: "APPROVE_FOR_REVIEW" | "IMPROVEMENT_ROADMAP"

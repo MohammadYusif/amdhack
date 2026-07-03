@@ -12,7 +12,7 @@
 ![Backend](https://img.shields.io/badge/FastAPI-Python-1B6B4A?style=flat-square)
 ![Frontend](https://img.shields.io/badge/Next.js%2016-React%2019-02141E?style=flat-square)
 ![Open Banking](https://img.shields.io/badge/SAMA-Open%20Banking%202026-033957?style=flat-square)
-![Wathiq](https://img.shields.io/badge/Wathiq%20API-LIVE-success?style=flat-square)
+![Wathq](https://img.shields.io/badge/Wathq%20API-LIVE-success?style=flat-square)
 
 Built for the **AMAD 2026 Hackathon** — Alinma Bank × Tuwaiq Academy · July 16–18 · Riyadh
 
@@ -49,9 +49,9 @@ The model is proven locally: **Tamara** (Saudi BNPL) achieved **+32% approval ra
 <sub>54 cross-bank transactions become 12 months of visible income. The <b>worst month pulses red</b> — that's the repayment-capacity basis, not the average. Responsible lending, visualized.</sub>
 </td>
 <td width="50%" align="center">
-<img src="demo_screenshots/12_live_wathiq_proof.png" alt="Live Wathiq API proof" width="300"/><br/>
-<b>⭐ Live Wathiq API proof</b><br/>
-<sub>One tap fires a <b>real HTTP call to the official Wathiq gateway</b> (<code>api.wathq.sa</code>) and shows the raw response on screen. Not a mockup — provable on stage.</sub>
+<img src="demo_screenshots/12_live_wathq_proof.png" alt="Live Wathq API proof" width="300"/><br/>
+<b>⭐ Live Wathq API proof</b><br/>
+<sub>One tap fires a <b>real HTTP call to the official Wathq gateway</b> (<code>api.wathq.sa</code>) and shows the raw response on screen. Not a mockup — provable on stage.</sub>
 </td>
 </tr>
 <tr>
@@ -70,7 +70,7 @@ The model is proven locally: **Tamara** (Saudi BNPL) achieved **+32% approval ra
 
 <div align="center">
 <img src="demo_screenshots/13_officer_dashboard_full.png" alt="Credit officer dashboard" width="760"/><br/>
-<b>The credit officer dashboard</b> — full factor breakdown, SIMAH exception banner, Wathiq verification, income trend, and a human decision row. <b>No loan is ever auto-approved.</b>
+<b>The credit officer dashboard</b> — full factor breakdown, SIMAH exception banner, Wathq verification, income trend, and a human decision row. <b>No loan is ever auto-approved.</b>
 </div>
 
 *All 15 walkthrough screenshots live in [`demo_screenshots/`](demo_screenshots/).*
@@ -89,7 +89,7 @@ The demo runs as a mobile-first phone simulation in the browser. Walk through it
 | 4 | **Live Pipeline Scan** | Five sequential real API calls, each visible in DevTools → Network |
 | 5 | **⭐ Cash-Flow Reveal** | Monthly income bars animate in from real `step2` data; worst month highlighted as the lending basis |
 | 6 | **Score Result** | Animated gauge, before/after card, 5-factor breakdown with per-factor **data-provenance labels**, VANC/v1 toggle, loan offer, DBR calculator, buffer selection, PDF download |
-| 7 | **⭐ Behind the Scenes** | Floating `</>` button overlays the raw `full-assessment` JSON + a **live Wathiq call button** — proof nothing is hardcoded |
+| 7 | **⭐ Behind the Scenes** | Floating `</>` button overlays the raw `full-assessment` JSON + a **live Wathq call button** — proof nothing is hardcoded |
 | 8 | **Officer Dashboard** | Full credit-officer view with Claude-generated Arabic explanation and Approve / Decline / Human-Review actions |
 
 ### The three personas
@@ -107,7 +107,7 @@ The demo runs as a mobile-first phone simulation in the browser. Walk through it
 | 🪪 1 — KYC | Nafath | Biometric identity + Virtual Core Banking Profile |
 | 🏦 2 — Lean AIS | Open Banking | 18 months of cross-bank transactions pulled; monthly buckets computed |
 | 📋 3 — SIMAH | Credit bureau | Thin file detected — expected for freelancers, **not** a negative signal |
-| ✅ 4 — Wathiq | Ministry of Commerce | Declared client companies verified against the CR registry |
+| ✅ 4 — Wathq | Ministry of Commerce | Declared client companies verified against the CR registry |
 | ⚡ 5 — Mihan Engine | VANC model | Composite score + tier + complete loan recommendation |
 
 ---
@@ -116,12 +116,12 @@ The demo runs as a mobile-first phone simulation in the browser. Walk through it
 
 | Source | Status | Detail |
 |---|---|---|
-| **Wathiq** | 🟢 **LIVE** | Real client (`backend/wathiq_api.py`) against the official gateway, `apiKey` auth, confirmed HTTP 200. The `/wathiq-live-proof` endpoint fires an on-demand real call, shown in-app. |
+| **Wathq** | 🟢 **LIVE** | Real client (`backend/wathq_api.py`) against the official gateway, `apiKey` auth, confirmed HTTP 200. The `/wathq-live-proof` endpoint fires an on-demand real call, shown in-app. |
 | **Lean AIS** | 🔵 Simulated | Deterministic synthetic transactions. Real AIS access for credit scoring requires the SAMA Regulatory Sandbox (institutional path — mapped in our roadmap). |
 | **SIMAH** | 🔵 Simulated | Bureau access is restricted to licensed financial institutions with a SIMAH membership — only Alinma itself can hold this. |
 | **Nafath** | 🔵 Simulated | Requires a TCC license — a formal government authorization, not an open API. |
 
-**Why the demo narrative still uses simulated Wathiq data:** the Trial-tier sandbox returns a single fixed record with the company name privacy-masked (literal `x` characters) for *any* CR number — it does not do real per-CR lookups. So the persona storyline keeps clean simulated names, while the **"خلف الكواليس"** panel proves the live integration honestly, masking and all. All four sources share the same `try-real-then-fallback` architecture, so each one is a drop-in replacement once its regulatory path opens.
+**Why the demo narrative still uses simulated Wathq data:** the Trial-tier sandbox returns a single fixed record with the company name privacy-masked (literal `x` characters) for *any* CR number — it does not do real per-CR lookups. So the persona storyline keeps clean simulated names, while the **"خلف الكواليس"** panel proves the live integration honestly, masking and all. All four sources share the same `try-real-then-fallback` architecture, so each one is a drop-in replacement once its regulatory path opens.
 
 ---
 
@@ -135,7 +135,7 @@ The demo runs as a mobile-first phone simulation in the browser. Walk through it
 | Income Stability | 25% | Month-over-month income variance | ⚡ **Computed live**: CV over a zero-filled 18-month window |
 | Client Diversity | 20% | HHI concentration across income sources | ⚡ **Computed live**: HHI over income senders |
 | Savings Behavior | 15% | Consistent positive end-of-month balance | Lean AIS balance history |
-| Contract Verification | 10% | Active, verified CRs for declared clients | **Wathiq** — Ministry of Commerce |
+| Contract Verification | 10% | Active, verified CRs for declared clients | **Wathq** — Ministry of Commerce |
 
 ### Tiers
 
@@ -204,7 +204,7 @@ npm run dev
 docker compose up --build
 ```
 
-Builds and starts both services (frontend production build + backend). The Wathiq credentials in `backend/.env` are picked up automatically if the file exists — without it the live-proof button falls back to simulation, same as running natively. The SQLite audit log lives inside the container, so it resets on rebuild (fine for the demo).
+Builds and starts both services (frontend production build + backend). The Wathq credentials in `backend/.env` are picked up automatically if the file exists — without it the live-proof button falls back to simulation, same as running natively. The SQLite audit log lives inside the container, so it resets on rebuild (fine for the demo).
 
 | Service | URL |
 |---|---|
@@ -213,20 +213,20 @@ Builds and starts both services (frontend production build + backend). The Wathi
 | Interactive API docs | http://localhost:9000/docs |
 | Health check | http://localhost:9000/health |
 | SAMA audit log | http://localhost:9000/audit-log |
-| **Wathiq live proof** | http://localhost:9000/wathiq-live-proof |
+| **Wathq live proof** | http://localhost:9000/wathq-live-proof |
 
-### ⚠️ Before demo day — `backend/.env` is required for the live Wathiq proof
+### ⚠️ Before demo day — `backend/.env` is required for the live Wathq proof
 
-`backend/.env` is **gitignored** (it holds a real developer.wathq.sa API key) and will not exist on a fresh clone. Without it the live Wathiq button silently falls back to simulation — the demo still works, but you lose the live-proof moment.
+`backend/.env` is **gitignored** (it holds a real developer.wathq.sa API key) and will not exist on a fresh clone. Without it the live Wathq button silently falls back to simulation — the demo still works, but you lose the live-proof moment.
 
 ```env
 ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-WATHIQ_CONSUMER_KEY=<your developer.wathq.sa consumer key>
-WATHIQ_CONSUMER_SECRET=<your developer.wathq.sa consumer secret>
-WATHIQ_BASE_URL=https://api.wathq.sa/sandbox/commercial-registration
+WATHQ_CONSUMER_KEY=<your developer.wathq.sa consumer key>
+WATHQ_CONSUMER_SECRET=<your developer.wathq.sa consumer secret>
+WATHQ_BASE_URL=https://api.wathq.sa/sandbox/commercial-registration
 ```
 
-Restart the backend, then verify with `curl http://localhost:9000/wathiq-live-proof` — `"live": true` means you're good **before** you're on stage.
+Restart the backend, then verify with `curl http://localhost:9000/wathq-live-proof` — `"live": true` means you're good **before** you're on stage.
 
 ---
 
@@ -241,13 +241,13 @@ Base URL: `http://localhost:9000`
 | GET | `/profiles/{id}/score?version=v1\|v2` | Mihan score (Phase 1 or VANC) |
 | GET | `/profiles/{id}/explanation?lang=ar\|en` | Claude-generated explanation |
 | GET | `/profiles/{id}/lean-transactions` | Lean AIS transaction history |
-| GET | `/profiles/{id}/wathiq` | Wathiq client verification (live-first, simulated fallback) |
+| GET | `/profiles/{id}/wathq` | Wathq client verification (live-first, simulated fallback) |
 | GET | `/profiles/{id}/factor-analysis` | **Live factor derivation** — CV + HHI recomputed from transactions, with evidence |
 | GET | `/profiles/{id}/ai-privacy-proof` | **AI privacy proof** — the literal payload sent to Claude (anonymized scores only, zero PII) |
-| GET | `/wathiq-live-proof?cr=` | **On-demand real call to the live Wathiq API** — raw response + call metadata |
+| GET | `/wathq-live-proof?cr=` | **On-demand real call to the live Wathq API** — raw response + call metadata |
 | GET | `/profiles/{id}/simah` | SIMAH thin-file report |
 | GET | `/profiles/{id}/roadmap` | Score-improvement plan |
-| GET | `/profiles/{id}/pipeline/step1…step5` | The five pipeline stages (KYC → Lean → SIMAH → Wathiq → scoring) |
+| GET | `/profiles/{id}/pipeline/step1…step5` | The five pipeline stages (KYC → Lean → SIMAH → Wathq → scoring) |
 | GET | `/profiles/{id}/full-assessment` | Complete pipeline snapshot |
 | GET | `/profiles/{id}/proof-of-income` | Cash Flow History Statement (PDF) |
 | POST | `/profiles/{id}/human-review` | Request credit-officer review / log buffer selection |
@@ -263,7 +263,7 @@ Base URL: `http://localhost:9000`
 | Backend | FastAPI (Python) · SQLite audit log · fpdf2 PDF (Arabic RTL + QR) |
 | Frontend | Next.js 16 App Router · React 19 · Tailwind CSS 4 · Framer Motion |
 | Scoring | Custom VANC engine (Volatility-Adjusted Net Cash flow) |
-| Company verification | **Wathiq — Ministry of Commerce (live API)** |
+| Company verification | **Wathq — Ministry of Commerce (live API)** |
 | Open Banking | Lean Technologies AIS (simulated; SAMA-sandbox roadmap) |
 | KYC / Bureau | Nafath · SIMAH (simulated; license-gated) |
 | AI explanations | Claude (Anthropic) — Arabic + English |
@@ -275,19 +275,19 @@ Base URL: `http://localhost:9000`
 ```
 /
 ├── backend/
-│   ├── main.py                 # All API endpoints (incl. /wathiq-live-proof)
+│   ├── main.py                 # All API endpoints (incl. /wathq-live-proof)
 │   ├── scoring.py              # 5-factor engine: Phase 1 + VANC
 │   ├── factor_analysis.py      # ⚡ Live factor derivation from transactions (CV + HHI)
 │   ├── ai_privacy.py           # 🔒 Zero-PII payload builder for AI explanations (test-enforced)
-│   ├── wathiq_api.py           # 🟢 LIVE Wathiq client — real gateway, graceful fallback
-│   ├── wathiq_simulation.py    # Curated fallback data (live-first via wathiq_api)
+│   ├── wathq_api.py           # 🟢 LIVE Wathq client — real gateway, graceful fallback
+│   ├── wathq_simulation.py    # Curated fallback data (live-first via wathq_api)
 │   ├── lean_simulation.py      # Deterministic Lean AIS transactions
 │   ├── simah_simulation.py     # SIMAH thin-file simulation
 │   ├── models.py · profiles.py · database.py · pdf_gen.py
 │   ├── improvement_roadmap.py · explanations.json · generate_cache.py
 │   ├── tests/                  # 34 pytest cases — tiers, DBR, VANC, factor derivation, PII exclusion
 │   ├── requirements.txt · Dockerfile
-│   └── .env                    # (gitignored) Wathiq API credentials — see Quick Start
+│   └── .env                    # (gitignored) Wathq API credentials — see Quick Start
 ├── frontend/
 │   ├── app/
 │   │   ├── page.tsx            # /      — rejection simulator

@@ -200,7 +200,7 @@ class TestFactorAnalysis:
         _, evidence = derive_factors(PROFILES["mohammad"])
         assert evidence["income_stability"]["provenance"] == "COMPUTED_FROM_LEAN_AIS"
         assert evidence["client_diversity"]["provenance"] == "COMPUTED_FROM_LEAN_AIS"
-        assert evidence["contract_verification"]["provenance"] == "WATHIQ_MINISTRY_OF_COMMERCE"
+        assert evidence["contract_verification"]["provenance"] == "WATHQ_MINISTRY_OF_COMMERCE"
 
     def test_derivation_is_deterministic(self):
         f1, _ = derive_factors(PROFILES["noura"])

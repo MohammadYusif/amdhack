@@ -5,8 +5,8 @@ services:
     ports:
       - "9000:9000"
     env_file:
-      # Holds the Wathiq API credentials; without it the app silently
-      # falls back to simulated Wathiq data (demo still works).
+      # Holds the Wathq API credentials; without it the app silently
+      # falls back to simulated Wathq data (demo still works).
       - path: backend/.env
         required: false
     environment:

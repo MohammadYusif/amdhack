@@ -15,7 +15,7 @@ history rather than taken from onboarding declarations:
                       a 4-client benchmark: 4+ evenly-weighted clients = 100.
 
 The remaining three factors (expense_discipline, savings_behavior,
-contract_verification) come from onboarding declarations + Wathiq, because
+contract_verification) come from onboarding declarations + Wathq, because
 the AIS simulator only produces income-side transactions. In production the
 expense factors would be derived from Lean's expense categorization the
 same way. Every factor carries a `provenance` label so the UI can show
@@ -133,7 +133,7 @@ def derive_factors(profile: Profile) -> tuple[FactorScores, dict]:
             "note": "Production: derived from Lean AIS balance history",
         },
         "contract_verification": {
-            "provenance": "WATHIQ_MINISTRY_OF_COMMERCE",
+            "provenance": "WATHQ_MINISTRY_OF_COMMERCE",
             "score": profile.factor_inputs.contract_verification,
             "note": "CR status + registration age of declared clients",
         },

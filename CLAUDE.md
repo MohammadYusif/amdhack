@@ -18,14 +18,14 @@ empty SIMAH files and no Mudad salary record.
 
 ## Key facts
 
-- `backend/.env` (gitignored) holds real Wathiq API credentials. Without it,
+- `backend/.env` (gitignored) holds real Wathq API credentials. Without it,
   everything falls back to simulation — demo still works but the live-proof
   button shows `"live": false`. See README Quick Start for the format.
-- **Wathiq is LIVE** (`backend/wathiq_api.py` → api.wathq.sa sandbox). Lean,
+- **Wathq is LIVE** (`backend/wathq_api.py` → api.wathq.sa sandbox). Lean,
   SIMAH, and Nafath are simulated (license-gated). All use try-real-then-fallback.
-- The Trial-tier Wathiq sandbox returns one fixed record with the company name
+- The Trial-tier Wathq sandbox returns one fixed record with the company name
   masked with literal `x` chars for ANY CR — that's why the persona narrative
-  uses simulated names while `/wathiq-live-proof` shows the raw live response.
+  uses simulated names while `/wathq-live-proof` shows the raw live response.
 - Determinism matters on stage: simulated data seeds use `zlib.crc32`, never
   the built-in `hash()` (randomized per process → scores would change across restarts).
 - Frontend API base is `NEXT_PUBLIC_API_URL` (default `http://localhost:9000`),

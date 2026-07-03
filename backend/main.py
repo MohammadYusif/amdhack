@@ -20,7 +20,7 @@ from database import init_db, append_audit_log, get_audit_log
 from lean_simulation import generate_transactions, get_declared_clients
 from factor_analysis import derive_factors, monthly_income_buckets
 from ai_privacy import build_privacy_proof
-from wathiq_simulation import verify_profile_clients, verify_cr
+from wathq_simulation import verify_profile_clients, verify_cr
 from simah_simulation import get_simah_report
 from improvement_roadmap import generate_roadmap
 
@@ -185,9 +185,9 @@ def lean_transactions(profile_id: str, months: int = 18):
     }
 
 
-@app.get("/profiles/{profile_id}/wathiq")
-def wathiq_verify(profile_id: str):
-    """Verify declared client companies via Wathiq API."""
+@app.get("/profiles/{profile_id}/wathq")
+def wathq_verify(profile_id: str):
+    """Verify declared client companies via Wathq API."""
     if profile_id not in PROFILES:
         raise HTTPException(status_code=404, detail="Profile not found")
     results = verify_profile_clients(profile_id)
@@ -199,18 +199,18 @@ def wathiq_verify(profile_id: str):
         "all_verified": all_verified,
         "has_risk_flags": has_flags,
         "results": results,
-        "data_source": "Wathiq — Ministry of Commerce (SAMA Circular 472047799)",
+        "data_source": "Wathq — Ministry of Commerce (SAMA Circular 472047799)",
     }
 
 
-@app.get("/wathiq-live-proof")
-def wathiq_live_proof(cr: str | None = None):
+@app.get("/wathq-live-proof")
+def wathq_live_proof(cr: str | None = None):
     """
-    On-demand real call to the live Wathiq API (not the demo simulation).
+    On-demand real call to the live Wathq API (not the demo simulation).
     Used by the "خلف الكواليس" panel to prove the integration genuinely
     works end-to-end, independent of the curated persona narrative.
     """
-    from wathiq_api import fetch_live_proof, LIVE_PROOF_SAMPLE_CR
+    from wathq_api import fetch_live_proof, LIVE_PROOF_SAMPLE_CR
     return fetch_live_proof(cr or LIVE_PROOF_SAMPLE_CR)
 
 
@@ -401,12 +401,12 @@ def pipeline_step3(profile_id: str):
 
 @app.get("/profiles/{profile_id}/pipeline/step4")
 def pipeline_step4(profile_id: str):
-    """Wathiq client verification."""
+    """Wathq client verification."""
     if profile_id not in PROFILES:
         raise HTTPException(status_code=404, detail="Profile not found")
     results = verify_profile_clients(profile_id)
     return {
-        "step": "step4_wathiq",
+        "step": "step4_wathq",
         "status": "COMPLETE",
         "clients_verified": sum(1 for w in results if w["verified"]),
         "total_clients": len(results),
@@ -453,7 +453,7 @@ def full_assessment(profile_id: str, version: str = "v1"):
     Complete end-to-end assessment pipeline:
     1. SIMAH report
     2. Lean AIS transactions
-    3. Wathiq client verification
+    3. Wathq client verification
     4. Mihan score calculation (v1 = Phase 1, v2 = VANC Phase 2)
     5. Loan recommendation
     Used to drive the 60-second scoring animation in the frontend.
@@ -464,7 +464,7 @@ def full_assessment(profile_id: str, version: str = "v1"):
 
     simah = get_simah_report(profile_id)
     transactions = generate_transactions(profile_id)
-    wathiq = verify_profile_clients(profile_id)
+    wathq = verify_profile_clients(profile_id)
 
     factors, factor_evidence = derive_factors(profile)
     if version == "v2":
@@ -483,7 +483,7 @@ def full_assessment(profile_id: str, version: str = "v1"):
         tier=score.tier,
         event="FULL_ASSESSMENT_COMPLETED",
         details=(
-            f"simah={simah['file_type']} wathiq_verified={all(w['verified'] for w in wathiq)} "
+            f"simah={simah['file_type']} wathq_verified={all(w['verified'] for w in wathq)} "
             f"exception_sandbox={exception_triggered} version={version}"
         ),
         endpoint="/profiles/{profile_id}/full-assessment",
@@ -502,13 +502,13 @@ def full_assessment(profile_id: str, version: str = "v1"):
             "step1_kyc":      {"status": "COMPLETE", "method": "Nafath biometric + Virtual Core Banking Profile"},
             "step2_lean_ais": {"status": "COMPLETE", "transactions_pulled": len(transactions), "months": 18},
             "step3_simah":    {"status": "COMPLETE", "file_type": simah["file_type"]},
-            "step4_wathiq":   {"status": "COMPLETE", "clients_verified": sum(1 for w in wathiq if w["verified"]), "total_clients": len(wathiq)},
+            "step4_wathq":   {"status": "COMPLETE", "clients_verified": sum(1 for w in wathq if w["verified"]), "total_clients": len(wathq)},
             "step5_scoring":  {"status": "COMPLETE", "composite": score.composite, "tier": score.tier, "engine_version": version},
         },
         "score": score.model_dump(),
         "factor_analysis": factor_evidence,
         "simah": simah,
-        "wathiq_results": wathiq,
+        "wathq_results": wathq,
         "exception_sandbox_triggered": exception_triggered,
         "loan_recommendation": score.loan.model_dump() if score.loan else None,
         "next_step": (
