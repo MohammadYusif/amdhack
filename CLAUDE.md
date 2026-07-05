@@ -38,9 +38,12 @@ empty SIMAH files and no Mudad salary record.
   source of truth for what reaches Claude (five scores + tier, nothing else) —
   used by both `generate_cache.py` and `/ai-privacy-proof`. Never add profile
   fields to `build_ai_prompt`; `tests/test_ai_privacy.py` fails on any leak.
-- Demo-day materials live in `docs/pitch/`: script, deck outline, checklist,
-  team cheat sheet, 72h on-site plan, unit economics, deck screenshots, and
-  the backup video (`mihan_demo_backup.webm`).
+- Public pitch materials live in `docs/pitch/`: deck outline, competitive
+  landscape, unit economics, deck screenshots, and the backup video
+  (`mihan_demo_backup.webm`).
+- Backstage prep (demo script, day-of checklist, team cheat sheet, 72h plan)
+  lives in the gitignored `team/` folder — kept out of the judged repo on
+  purpose; it contains on-stage framing/Q&A coaching. Not pushed.
 
 ## Regulatory constraints (do not deviate)
 

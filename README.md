@@ -300,8 +300,8 @@ Base URL: `http://localhost:9000`
 ├── demo_screenshots/           # Full 15-shot walkthrough (used above)
 ├── docs/
 │   ├── assets/                 # Brand assets (logo)
-│   ├── pitch/                  # Demo script · deck outline · checklist · cheat sheet ·
-│   │                           #   72h plan · unit economics · screenshots/ · backup video (.webm)
+│   ├── pitch/                  # Deck outline · competitive landscape · unit economics ·
+│   │                           #   screenshots/ · backup video (.webm)
 │   └── research/               # Research brief · regulatory clearance · sample report (PDF)
 ├── docker-compose.yml          # One-command Docker startup (both services)
 └── start.ps1                   # One-command Windows startup

@@ -33,3 +33,6 @@ Thumbs.db
 .env.local
 .env*.local
 !.env.example
+
+# Team-only pitch prep (backstage — not for the judged repo)
+team/
