@@ -14,6 +14,9 @@ env/
 # SQLite runtime DB (auto-recreated on first run)
 backend/mihan.db
 
+# Local pdf_gen.py test output — not a deliverable, regenerate anytime
+backend/test_proof.pdf
+
 # Next.js
 frontend/.next/
 frontend/out/
