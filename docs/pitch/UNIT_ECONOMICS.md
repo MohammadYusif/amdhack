@@ -23,9 +23,9 @@ principal and interest proportionally — margins hold.)
 
 | Step | Value | Basis |
 |---|---|---|
-| Active Saudi freelancers | 1,674,000 | Official freelance-platform figure (research brief) |
-| With ≥12 months banking history | ~670,000 (40% ⓐ) | Needed for meaningful CV/VANC |
-| Alinma reach, year 1 | 10,000 applicants (1.5% of addressable ⓐ) | In-app placement to existing customers only |
+| Active Saudi freelancers | 1,800,000+ (2.2M+ registered) | National freelance platform, 2024 |
+| With ≥12 months banking history | ~720,000 (40% ⓐ) | Needed for meaningful CV/VANC |
+| Alinma reach, year 1 | 10,000 applicants (~1.4% of addressable ⓐ) | In-app placement to existing customers only |
 | Tier mix after scoring | 25% GREEN / 35% YELLOW / 40% BUILDING ⓐ | Persona-calibrated; pilot will measure |
 | Offer take-up | 60% ⓐ | Pre-qualified in-app offers convert high |
 | **Funded loans** | **1,500 GREEN + 2,100 YELLOW = 3,600** | |

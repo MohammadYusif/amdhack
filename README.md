@@ -22,7 +22,7 @@ Built for the **AMAD 2026 Hackathon** — Alinma Bank × Tuwaiq Academy · July 
 
 ## The Problem
 
-**1.674 million active Saudi freelancers** are rejected by every commercial bank:
+**Over 1.8 million active Saudi freelancers** (2.2M+ registered on the national platform) are rejected by every commercial bank:
 
 - **SIMAH** file is empty — no credit history exists
 - **Mudad** has no salary record — there is no employer
