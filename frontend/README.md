@@ -1,36 +1,27 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mihan frontend
 
-## Getting Started
+Next.js 16 (App Router) + React 19 + Tailwind CSS 4 + Framer Motion. This is
+the phone-simulation demo UI described in the [project README](../README.md)
+— start there for the full picture (routes, personas, scoring model).
 
-First, run the development server:
+## Local dev
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Requires the backend running on `:9000` (see the root README's Quick Start).
+API base URL is `NEXT_PUBLIC_API_URL`, defined in [`lib/config.ts`](lib/config.ts)
+(defaults to `http://localhost:9000`; see `.env.production.example` for a
+Docker/production override).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Key paths
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- [`app/page.tsx`](app/page.tsx) — `/` rejection simulator (the "before Mihan" wall)
+- [`app/demo/`](app/demo) — `/demo` persona selector + full demo flow
+- [`app/apply/`](app/apply), [`app/banker/`](app/banker) — applicant and officer-side screens
+- [`lib/`](lib) — API client, types, i18n helpers, brand/tier config
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See [`AGENTS.md`](AGENTS.md) before touching App Router code — this Next.js
+version has breaking changes from what most training data assumes.

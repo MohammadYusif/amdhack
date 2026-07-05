@@ -279,8 +279,8 @@ Base URL: `http://localhost:9000`
 │   ├── scoring.py              # 5-factor engine: Phase 1 + VANC
 │   ├── factor_analysis.py      # ⚡ Live factor derivation from transactions (CV + HHI)
 │   ├── ai_privacy.py           # 🔒 Zero-PII payload builder for AI explanations (test-enforced)
-│   ├── wathq_api.py           # 🟢 LIVE Wathq client — real gateway, graceful fallback
-│   ├── wathq_simulation.py    # Curated fallback data (live-first via wathq_api)
+│   ├── wathq_api.py            # 🟢 LIVE Wathq client — real gateway, graceful fallback
+│   ├── wathq_simulation.py     # Curated fallback data (live-first via wathq_api)
 │   ├── lean_simulation.py      # Deterministic Lean AIS transactions
 │   ├── simah_simulation.py     # SIMAH thin-file simulation
 │   ├── models.py · profiles.py · database.py · pdf_gen.py
