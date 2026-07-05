@@ -44,11 +44,7 @@ _cache_ts: dict[str, float] = {}
 
 
 def _credentials() -> tuple[str | None, str | None]:
-    # Legacy WATHIQ_* names accepted as fallback — an un-migrated .env on the
-    # demo laptop must never silently kill the live proof.
-    key = os.environ.get("WATHQ_CONSUMER_KEY") or os.environ.get("WATHIQ_CONSUMER_KEY")
-    base = os.environ.get("WATHQ_BASE_URL") or os.environ.get("WATHIQ_BASE_URL")
-    return key, base
+    return os.environ.get("WATHQ_CONSUMER_KEY"), os.environ.get("WATHQ_BASE_URL")
 
 
 def _is_masked_sandbox_dummy(name: str) -> bool:
