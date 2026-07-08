@@ -99,7 +99,7 @@ The demo runs as a mobile-first phone simulation in the browser. Walk through it
 | # | Screen | What happens |
 |---|--------|--------------|
 | 1 | **Rejection Wall** (`/`) | A realistic Alinma loan form → `NO_SALARY_TRANSFER` → pivot card offering the Mihan path |
-| 2 | **Profile Selector** (`/demo`) | Choose one of three personas (below) |
+| 2 | **Profile Selector** (`/demo`) | Choose one of three personas (below) — or take the **«جرّب ملفك»** card to `/import` and score a **real anonymized statement** (step 5–8 equivalents, computed from 928 real transactions) |
 | 3 | **Onboarding** | Lean Open Banking consent → Nafath biometric face-scan → Virtual Core Banking Profile (Tech-IBAN) |
 | 4 | **Live Pipeline Scan** | Five sequential real API calls, each visible in DevTools → Network |
 | 5 | **⭐ Cash-Flow Reveal** | Monthly income bars animate in from real `step2` data; worst month highlighted as the lending basis |
@@ -330,7 +330,7 @@ Base URL: `http://localhost:9000`
 │   ├── components/             # Shared UI
 │   ├── lib/                    # config · types · typed API helpers
 │   └── Dockerfile              # Multi-stage Next.js standalone build
-├── demo_screenshots/           # Full 15-shot walkthrough (used above)
+├── demo_screenshots/           # Full 20-shot walkthrough incl. the /import flow (used above)
 ├── docs/
 │   ├── assets/                 # Brand assets (logo)
 │   ├── pitch/                  # Deck outline · competitive landscape · unit economics ·
