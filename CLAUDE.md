@@ -44,9 +44,18 @@ empty SIMAH files and no Mudad salary record.
   pseudonymized, fail-closed `assert_no_pii` scan. The importer is a **medallion
   pipeline**: bronze (raw parse, in-memory only) → silver (**entity resolution** —
   narration variants and multi-rail payments of the same counterparty collapse to
-  ONE `ENTITY-` pseudonym; consonant-skeleton self-match catches spelling variants
-  like concatenated surnames) → gold (scoring). Deterministic rules only — Claude
-  never touches ingestion. `POST /import-statement` scores
+  ONE `ENTITY-` pseudonym) → gold (scoring). Deterministic rules only — Claude
+  never touches ingestion. Entity keying is deliberately split by risk direction:
+  `entity_key()` uses the FULL significant-token set (order-independent, legal
+  suffixes like CO/LLC/EST dropped, descriptors like TRADING/HOLDING kept because
+  they distinguish) so different clients sharing a first name never over-merge;
+  `is_self()` uses a lossy consonant skeleton (MHMD, AL/EL prefix dropped) so
+  spelling/transliteration variants of the ACCOUNT HOLDER are still caught and
+  excluded — needing ≥2 token matches so a shared first name never triggers it.
+  Arabic narrations are NFKC-folded from presentation forms so Arabic sender names
+  tokenize instead of vanishing. All self-transfer variants collapse to the single
+  holder in `silver_meta`. See `tests/test_statement_import.py::TestEntityResolution`.
+  `POST /import-statement` scores
   the anonymized JSON through the same VANC pipeline with **4 of 5 factors computed
   live** (stability CV, diversity HHI, expense ratio, savings) plus an integrity
   check against the statement's own printed totals. The consented anonymized

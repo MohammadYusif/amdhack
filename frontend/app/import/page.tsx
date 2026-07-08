@@ -233,9 +233,16 @@ export default function ImportPage() {
                     { icon: "🥉", title: "خام", sub: `${result.transaction_count} عملية · لا يُحفظ` },
                     {
                       icon: "🥈", title: "منقّى",
-                      sub: result.pipeline?.silver?.entities_resolved != null
-                        ? `${result.pipeline.silver.raw_sender_names} اسم ← ${result.pipeline.silver.entities_resolved} كيان`
-                        : "مجهّل الهوية",
+                      sub: (() => {
+                        const sv = result.pipeline?.silver
+                        if (sv?.entities_resolved == null) return "مجهّل الهوية"
+                        const merged = sv.name_variants_merged ?? 0
+                        // show the merge story when there is one; otherwise
+                        // state the honest distinct-entity count
+                        return merged > 0
+                          ? `${sv.raw_sender_names} اسم ← ${sv.entities_resolved} كيان`
+                          : `${sv.entities_resolved} كيان · موحّد بالهوية`
+                      })(),
                     },
                     { icon: "🥇", title: "ذهبي", sub: "٤ عوامل حيّة · VANC" },
                   ].map((s, i) => (

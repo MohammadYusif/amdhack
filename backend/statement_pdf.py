@@ -220,6 +220,12 @@ def parse_statement_text(pages_text: list[str]) -> tuple[AnonStatement, list[str
             if kind in ("NAMED_SENDER", "P2P") and ident:
                 named_idents.append(ident)
     entity_map = resolve_entities(named_idents)
+    # Self-transfers all belong to ONE person — the account holder — even
+    # across spelling variants (SALEM AL HARBI / SALIM ALHARBI). is_self uses
+    # a lossy skeleton so it catches those variants; entity_map keys them
+    # strictly, so the variants get DIFFERENT entity ids. Collapse every
+    # self-flagged entity id here so the holder counts as a single entity and
+    # is never mistaken for multiple income sources.
     self_entities = {
         entity_map[ident] for ident in named_idents if is_self(ident, holder_name)
     }
@@ -257,14 +263,21 @@ def parse_statement_text(pages_text: list[str]) -> tuple[AnonStatement, list[str
             category=category,
         ))
 
-    distinct_raws = len(entity_map)
-    distinct_entities = len(set(entity_map.values()))
+    # Count DISTINCT true entities: every self-flagged variant collapses to
+    # the single account holder; income entities are the rest. Merges = raw
+    # narration names seen minus true entities they resolved to.
+    distinct_raws = len({i for i in named_idents})
+    income_entities = {
+        entity_map[i] for i in named_idents if entity_map[i] not in self_entities
+    }
+    holder_count = 1 if self_entities else 0
+    true_entities = len(income_entities) + holder_count
     silver_meta = {
         "stage": "CLEANED_ANONYMIZED_ENTITY_RESOLVED",
         "raw_sender_names": distinct_raws,
-        "entities_resolved": distinct_entities,
-        "name_variants_merged": distinct_raws - distinct_entities,
-        "self_transfer_entities": len(self_entities),
+        "entities_resolved": true_entities,
+        "name_variants_merged": distinct_raws - true_entities,
+        "self_transfer_entities": holder_count,
         "rail_fragmentation": "eliminated — entities are keyed by counterparty "
                               "identity, never by bank or payment rail",
         "pii_scan": "FAIL_CLOSED_ENFORCED",

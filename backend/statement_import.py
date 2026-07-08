@@ -35,6 +35,7 @@ Income classification (what counts toward underwriting income):
 from __future__ import annotations
 
 import re
+import unicodedata
 import zlib
 from collections import defaultdict
 from typing import Optional
@@ -137,16 +138,40 @@ def pseudonym(prefix: str, identifier: str) -> str:
 
 
 _VOWELS = re.compile(r"[AEIOU]")
-_NON_ALPHA = re.compile(r"[^A-Zء-ي ]")  # keep Latin + Arabic letters
-# legal / corporate suffixes that vary between narrations of the same entity
-_LEGAL_SUFFIXES = {"BV", "CO", "LLC", "EST", "LTD", "INC", "COMPANY", "CORP", "PJSC", "SPC"}
+# keep Latin letters + the base Arabic block (0621–064A) + spaces; everything
+# else (digits, punctuation, presentation-form glyphs post-fold) becomes space
+_NON_ALPHA = re.compile(r"[^A-Zء-ي ]")
+_TATWEEL = "ـ"  # Arabic elongation char — cosmetic, carries no identity
+# Arabic diacritics (harakat) — strip so vowelled/unvowelled spellings match
+_HARAKAT = re.compile(r"[ً-ْ]")
+# Legal-entity form suffixes ONLY — these are corporate registration forms,
+# never distinguishing (CO/COMPANY, EST/ESTABLISHMENT are the same entity).
+# Descriptive words (TRADING, PAYMENTS, GROUP, HOLDING, …) are deliberately
+# NOT here: they CAN distinguish real companies ("SAUDI TRADING" is not
+# "SAUDI HOLDING"), so dropping them would silently over-merge.
+_LEGAL_SUFFIXES = {
+    "BV", "CO", "LLC", "EST", "LTD", "INC", "COMPANY", "CORP", "PJSC",
+    "SPC", "ESTABLISHMENT", "LLP", "WLL",
+}
 _NAME_PREFIXES = {"AL", "EL", "BIN", "IBN", "ABU"}
+
+
+def _fold(text: str) -> str:
+    """Script-fold a raw narration name into a canonical comparison form.
+    pdfplumber emits Arabic as presentation-form glyphs (U+FB50–U+FEFF);
+    NFKC folds those back into the base Arabic block so Arabic names produce
+    real tokens instead of being stripped to nothing. Latin is upper-cased."""
+    text = unicodedata.normalize("NFKC", text).replace(_TATWEEL, "")
+    text = _HARAKAT.sub("", text)
+    return text.upper()
 
 
 def _skeleton(token: str) -> str:
     """Consonant skeleton of a Latin name token, transliteration-tolerant:
     MOHAMMED / MOHAMMAD / MOHAMED all become 'MHMD'; the AL/EL prefix is
-    dropped so ALHARBI and 'AL HARBI' collapse to the same skeleton."""
+    dropped so ALHARBI and 'AL HARBI' collapse to the same skeleton. Used
+    ONLY for self-matching against the known holder name — deliberately
+    lossy, so never used for general entity clustering (see resolve_entities)."""
     token = token.upper()
     for prefix in ("AL", "EL"):
         if token.startswith(prefix) and len(token) > len(prefix) + 2:
@@ -157,8 +182,9 @@ def _skeleton(token: str) -> str:
 
 
 def normalize_name(name: str) -> list[str]:
-    """Uppercase, letters-only, legal suffixes and name particles dropped."""
-    cleaned = _NON_ALPHA.sub(" ", name.upper())
+    """Significant name tokens: script-folded, letters-only, with legal
+    suffixes and name particles dropped. Works for Latin and Arabic."""
+    cleaned = _NON_ALPHA.sub(" ", _fold(name))
     return [
         tok for tok in cleaned.split()
         if len(tok) >= 2 and tok not in _LEGAL_SUFFIXES and tok not in _NAME_PREFIXES
@@ -174,27 +200,40 @@ def is_self(sender_name: str, holder_name: str) -> bool:
     shared first name alone never triggers it."""
     sender_tokens = normalize_name(sender_name)
     holder_tokens = normalize_name(holder_name)
-    if len(sender_tokens) < 2 or not holder_tokens:
+    if len(sender_tokens) < 2 or len(holder_tokens) < 2:
         return False
     holder_skeletons = {_skeleton(t) for t in holder_tokens}
     matches = {_skeleton(t) for t in sender_tokens} & holder_skeletons
     return len(matches) >= 2
 
 
+def entity_key(name: str) -> str | None:
+    """Canonical identity key = the full SET of significant name tokens
+    (order-independent). Returns None when nothing significant survives.
+
+    This is the fix for silent over-projection. Keying on a single token
+    (or a lossy skeleton) merged different counterparties that merely shared
+    a first name — 'AHMED ALI' and 'AHMED HASSAN', or 'SAUDI TELECOM' and
+    'SAUDI AIRLINES' — collapsing distinct clients into one and understating
+    diversity. Requiring the WHOLE token set to match keeps them apart while
+    still merging pure legal-suffix / spacing / presentation-form variants
+    of the same entity ('DESIGN STUDIO CO' == 'DESIGN STUDIO COMPANY')."""
+    tokens = normalize_name(name)
+    return " ".join(sorted(set(tokens))) if tokens else None
+
+
 def resolve_entities(raw_names: list[str]) -> dict[str, str]:
     """Silver-layer entity resolution: map every raw sender name to ONE
-    canonical entity key, so narration variants of the same counterparty
-    ('ACME LTD', 'ACME PAYMENTS LTD') cannot masquerade as separate clients.
-
-    Clustering rule: first significant normalized token. Deliberately
-    conservative FOR LENDING — when identity is ambiguous we merge, which
-    can only lower the diversity score, never inflate it.
+    canonical entity pseudonym, so narration variants of the same
+    counterparty cannot masquerade as separate clients. Names that resolve
+    to no significant tokens fall back to their raw string (identical raws
+    still merge; distinct unknowns stay distinct — never fake-concentrated).
     Returns {raw_name: entity_pseudonym}; names never leave this process."""
     mapping: dict[str, str] = {}
     for raw in raw_names:
-        tokens = normalize_name(raw)
-        anchor = tokens[0] if tokens else raw.strip().upper()
-        mapping[raw] = pseudonym("ENTITY", _skeleton(anchor) or anchor)
+        key = entity_key(raw)
+        anchor = key if key is not None else "RAW:" + _fold(raw).strip()
+        mapping[raw] = pseudonym("ENTITY", anchor)
     return mapping
 
 
