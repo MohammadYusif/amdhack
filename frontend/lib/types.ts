@@ -100,6 +100,20 @@ export interface ImportedStatement {
 export interface ImportAssessment {
   source: string
   anonymization: string
+  // medallion pipeline provenance (bronze → silver → gold), counts only
+  pipeline: {
+    bronze: { stage: string; persisted: boolean; note?: string }
+    silver: {
+      stage: string
+      raw_sender_names?: number
+      entities_resolved?: number
+      name_variants_merged?: number
+      self_transfer_entities?: number
+      pii_scan?: string
+      note?: string
+    }
+    gold: { stage: string; factors_computed_live: number; engine: string }
+  }
   period: { start: string; end: string }
   transaction_count: number
   monthly_buckets: Record<string, { income: number; expenses: number }>

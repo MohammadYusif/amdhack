@@ -41,7 +41,12 @@ empty SIMAH files and no Mudad salary record.
 - **Real-statement importer** (the "your cash flow is simulated" answer):
   `backend/statement_pdf.py` (offline CLI) parses a real Saudi retail bank-statement
   PDF and anonymizes it AT ingestion — names/accounts/cards/refs stripped, senders
-  pseudonymized, fail-closed `assert_no_pii` scan. `POST /import-statement` scores
+  pseudonymized, fail-closed `assert_no_pii` scan. The importer is a **medallion
+  pipeline**: bronze (raw parse, in-memory only) → silver (**entity resolution** —
+  narration variants and multi-rail payments of the same counterparty collapse to
+  ONE `ENTITY-` pseudonym; consonant-skeleton self-match catches spelling variants
+  like concatenated surnames) → gold (scoring). Deterministic rules only — Claude
+  never touches ingestion. `POST /import-statement` scores
   the anonymized JSON through the same VANC pipeline with **4 of 5 factors computed
   live** (stability CV, diversity HHI, expense ratio, savings) plus an integrity
   check against the statement's own printed totals. The consented anonymized

@@ -25,7 +25,15 @@ import json
 import re
 import sys
 
-from statement_import import AnonStatement, AnonTransaction, assert_no_pii, is_self, pseudonym, scrub
+from statement_import import (
+    AnonStatement,
+    AnonTransaction,
+    assert_no_pii,
+    is_self,
+    pseudonym,
+    resolve_entities,
+    scrub,
+)
 
 # --- line patterns -----------------------------------------------------------
 
@@ -48,6 +56,7 @@ _FIELD = {
 # note narration patterns
 _IPS_SENDER = re.compile(r"\d{8}([A-Z]{6})[A-Z0-9]+/(.+)$")          # ...SASTCJ.../SENDER NAME
 _FRACCT = re.compile(r"FRACCT/(\d+)")                                 # internal transfer source acct
+_FRACCT_NAME = re.compile(r"FRACCT/(\d+)FR(\S+)")                     # source acct + sender display name
 _MERCHANT_NOTE = re.compile(r"Note:\(\d+-\d+\)\s*(.*)$")              # POS/online: (card-ref) Merchant
 _ELEC_MERCHANT = re.compile(r"Note:.*?:\s*(.+)$")                     # Elec. credit: card : Merchant
 _LPO_PAYER = re.compile(r"REM\d+[A-Z]{2}-([^-]+)")                    # payment order: REM<ref>XX-PAYER NAME-
@@ -61,47 +70,41 @@ def _iso(d: str) -> str:
     return d.replace("/", "-")
 
 
-def _classify_credit(tx_type: str, note: str, holder_name: str) -> tuple[str, str]:
-    """(counterparty_pseudonym_or_label, category) for a credit — built ONLY
-    from derived values, never from raw note text."""
+def _extract_credit_identity(tx_type: str, note: str) -> tuple[str, str | None]:
+    """Bronze→silver identity extraction for a credit: (kind, raw_identity).
+    kind decides the category; raw_identity (a sender name or account
+    number) feeds entity resolution and NEVER leaves the process."""
     t = tx_type.lower()
 
     if "PAYROLL" in note.upper():
-        return "PAYROLL", "INCOME"
-
+        return "PAYROLL", None
     if "atm deposit" in t:
-        return "CASH-DEPOSIT", "CASH_DEPOSIT"
-
+        return "CASH_DEPOSIT", None
     if "refund" in t or "refund" in note.lower():
-        return "MERCHANT-REFUND", "REFUND"
+        return "REFUND", None
+    if "elec. credit" in t:
+        return "REFUND", None
 
     if "local payment order" in t or "Payment-LP" in note:
-        # institutional remittance (e.g. university/employer payment order):
-        # payer name follows the REM ref — pseudonymize like any sender
+        # institutional remittance (university/employer payment order):
+        # payer name follows the REM ref
         m = _LPO_PAYER.search(note)
-        payer = m.group(1).strip() if m else note
-        if is_self(payer, holder_name):
-            return "SELF-LPO", "SELF_TRANSFER"
-        return pseudonym("SENDER-LPO", payer), "INCOME"
+        return "NAMED_SENDER", (m.group(1).strip() if m else note)
 
     m = _IPS_SENDER.search(note)
     if m and ("ips" in t or "sariee" in t or "sarie" in t or "credit" in t):
-        bank_code, sender = m.group(1), m.group(2).strip()
-        if is_self(sender, holder_name):
-            return f"SELF-{bank_code}", "SELF_TRANSFER"
-        return pseudonym(f"SENDER-{bank_code}", sender), "INCOME"
+        return "NAMED_SENDER", m.group(2).strip()
 
+    m = _FRACCT_NAME.search(note)
+    if m:  # internal transfer: prefer the sender display name (merges the
+        # same person across accounts); fall back to the account number
+        name = m.group(2).strip()
+        return "P2P", (name if len(name) >= 2 else m.group(1))
     m = _FRACCT.search(note)
-    if m:  # internal transfer received from another account at the same bank
-        return pseudonym("ACCT", m.group(1)), "P2P_TRANSFER"
+    if m:
+        return "P2P", m.group(1)
 
-    if "elec. credit" in t:
-        m = _ELEC_MERCHANT.search(note)
-        return scrub(m.group(1)) if m else "MERCHANT", "REFUND"
-
-    # unclassified credit: keep as income but give each distinct source its
-    # own pseudonym so it can't merge into one fake "sender" in the HHI
-    return pseudonym("UNVERIFIED", note or tx_type), "INCOME"
+    return "UNKNOWN", (note or tx_type)
 
 
 def _classify_debit(tx_type: str, note: str) -> tuple[str, str]:
@@ -142,33 +145,19 @@ def parse_statement_text(pages_text: list[str]) -> tuple[AnonStatement, list[str
         if fields[key]:
             redact_terms.append(fields[key].group(1))
 
-    transactions: list[AnonTransaction] = []
+    # ── BRONZE: raw parse — records exist only inside this function ──────
+    bronze: list[dict] = []
     prev_line = ""
     pending: dict | None = None  # anchor waiting for its amounts / note lines
 
-    def _redact_names(label: str) -> str:
-        # merchant labels can coincidentally contain holder-name tokens
-        # (e.g. a store named after a person) — over-redact rather than leak
-        for term in redact_terms:
-            label = re.sub(re.escape(term), "‹name›", label, flags=re.IGNORECASE)
-        return label
-
     def _finish(p: dict):
-        note = " ".join(p["note_lines"])
-        tx_type = scrub(_ARABIC.sub("", p["type"])) or "UNKNOWN"
-        if p["credit"] > 0:
-            counterparty, category = _classify_credit(p["type"], note, holder_name)
-        else:
-            counterparty, category = _classify_debit(p["type"], note)
-        counterparty = _redact_names(counterparty)
-        transactions.append(AnonTransaction(
-            date=_iso(p["date"]),
-            type=tx_type,
-            debit=p["debit"],
-            credit=p["credit"],
-            counterparty=counterparty,
-            category=category,
-        ))
+        bronze.append({
+            "date": _iso(p["date"]),
+            "type": p["type"],
+            "debit": p["debit"],
+            "credit": p["credit"],
+            "note": " ".join(p["note_lines"]),
+        })
 
     for page in pages_text[1:]:
         for raw in page.split("\n"):
@@ -212,6 +201,75 @@ def parse_statement_text(pages_text: list[str]) -> tuple[AnonStatement, list[str
     if pending:
         _finish(pending)
 
+    # ── SILVER: entity resolution + anonymization + categorization ───────
+    def _redact_names(label: str) -> str:
+        # merchant labels can coincidentally contain holder-name tokens
+        # (e.g. a store named after a person) — over-redact rather than leak
+        for term in redact_terms:
+            label = re.sub(re.escape(term), "‹name›", label, flags=re.IGNORECASE)
+        return label
+
+    # pass 1 — extract every credit's raw identity, then resolve entities
+    # across ALL of them so narration variants of the same counterparty
+    # collapse into one pseudonym before anything is emitted
+    named_idents: list[str] = []
+    for r in bronze:
+        if r["credit"] > 0:
+            kind, ident = _extract_credit_identity(r["type"], r["note"])
+            r["kind"], r["ident"] = kind, ident
+            if kind in ("NAMED_SENDER", "P2P") and ident:
+                named_idents.append(ident)
+    entity_map = resolve_entities(named_idents)
+    self_entities = {
+        entity_map[ident] for ident in named_idents if is_self(ident, holder_name)
+    }
+
+    KIND_LABELS = {
+        "PAYROLL": ("PAYROLL", "INCOME"),
+        "CASH_DEPOSIT": ("CASH-DEPOSIT", "CASH_DEPOSIT"),
+        "REFUND": ("MERCHANT-REFUND", "REFUND"),
+    }
+
+    # pass 2 — emit anonymized transactions
+    transactions: list[AnonTransaction] = []
+    for r in bronze:
+        if r["credit"] > 0:
+            kind, ident = r["kind"], r["ident"]
+            if kind in KIND_LABELS:
+                counterparty, category = KIND_LABELS[kind]
+            elif kind in ("NAMED_SENDER", "P2P") and ident:
+                entity = entity_map[ident]
+                if entity in self_entities:
+                    counterparty, category = "SELF-TRANSFER", "SELF_TRANSFER"
+                else:
+                    counterparty = entity
+                    category = "INCOME" if kind == "NAMED_SENDER" else "P2P_TRANSFER"
+            else:  # UNKNOWN — distinct pseudonym per source, still income
+                counterparty, category = pseudonym("UNVERIFIED", ident or r["type"]), "INCOME"
+        else:
+            counterparty, category = _classify_debit(r["type"], r["note"])
+        transactions.append(AnonTransaction(
+            date=r["date"],
+            type=scrub(_ARABIC.sub("", r["type"])) or "UNKNOWN",
+            debit=r["debit"],
+            credit=r["credit"],
+            counterparty=_redact_names(counterparty),
+            category=category,
+        ))
+
+    distinct_raws = len(entity_map)
+    distinct_entities = len(set(entity_map.values()))
+    silver_meta = {
+        "stage": "CLEANED_ANONYMIZED_ENTITY_RESOLVED",
+        "raw_sender_names": distinct_raws,
+        "entities_resolved": distinct_entities,
+        "name_variants_merged": distinct_raws - distinct_entities,
+        "self_transfer_entities": len(self_entities),
+        "rail_fragmentation": "eliminated — entities are keyed by counterparty "
+                              "identity, never by bank or payment rail",
+        "pii_scan": "FAIL_CLOSED_ENFORCED",
+    }
+
     statement = AnonStatement(
         period_start=_iso(period.group(1)) if period else (transactions[0].date if transactions else ""),
         period_end=_iso(period.group(2)) if period else (transactions[-1].date if transactions else ""),
@@ -219,6 +277,7 @@ def parse_statement_text(pages_text: list[str]) -> tuple[AnonStatement, list[str
         reported_total_deposits=_num(fields["deposits"].group(1)) if fields["deposits"] else None,
         reported_total_withdrawals=_num(fields["withdrawals"].group(1)) if fields["withdrawals"] else None,
         transactions=transactions,
+        silver_meta=silver_meta,
     )
     return statement, redact_terms
 

@@ -86,6 +86,9 @@ class AnonStatement(BaseModel):
     reported_total_deposits: Optional[float] = None
     reported_total_withdrawals: Optional[float] = None
     transactions: list[AnonTransaction]
+    # Silver-layer provenance from the medallion pipeline — counts only,
+    # written by statement_pdf.py; never contains names or identifiers.
+    silver_meta: Optional[dict] = None
 
     @field_validator("period_start", "period_end")
     @classmethod
@@ -133,16 +136,66 @@ def pseudonym(prefix: str, identifier: str) -> str:
     return f"{prefix}-{zlib.crc32(identifier.strip().upper().encode()) % 100000:05d}"
 
 
+_VOWELS = re.compile(r"[AEIOU]")
+_NON_ALPHA = re.compile(r"[^A-Zء-ي ]")  # keep Latin + Arabic letters
+# legal / corporate suffixes that vary between narrations of the same entity
+_LEGAL_SUFFIXES = {"BV", "CO", "LLC", "EST", "LTD", "INC", "COMPANY", "CORP", "PJSC", "SPC"}
+_NAME_PREFIXES = {"AL", "EL", "BIN", "IBN", "ABU"}
+
+
+def _skeleton(token: str) -> str:
+    """Consonant skeleton of a Latin name token, transliteration-tolerant:
+    MOHAMMED / MOHAMMAD / MOHAMED all become 'MHMD'; the AL/EL prefix is
+    dropped so ALHARBI and 'AL HARBI' collapse to the same skeleton."""
+    token = token.upper()
+    for prefix in ("AL", "EL"):
+        if token.startswith(prefix) and len(token) > len(prefix) + 2:
+            token = token[len(prefix):]
+    skeleton = _VOWELS.sub("", token)
+    # collapse doubled consonants (HASSAN/HASAN → HSN)
+    return re.sub(r"(.)\1+", r"\1", skeleton)
+
+
+def normalize_name(name: str) -> list[str]:
+    """Uppercase, letters-only, legal suffixes and name particles dropped."""
+    cleaned = _NON_ALPHA.sub(" ", name.upper())
+    return [
+        tok for tok in cleaned.split()
+        if len(tok) >= 2 and tok not in _LEGAL_SUFFIXES and tok not in _NAME_PREFIXES
+    ]
+
+
 def is_self(sender_name: str, holder_name: str) -> bool:
     """True when the credit sender is the account holder (e.g. a transfer
-    from their own account at another bank). Bank narrations often shorten
-    names, so match on token subset: 'SALEM AL HARBI' ⊆
-    'SALEM KHALED OMAR AL HARBI'."""
-    sender_tokens = set(sender_name.upper().split())
-    holder_tokens = set(holder_name.upper().split())
-    if not sender_tokens or not holder_tokens:
+    from their own account at another bank, possibly under a spelling
+    variant: SALIM ALHARBI vs SALEM KHALED OMAR AL HARBI). Matches on
+    consonant skeletons so transliteration and concatenation differences
+    don't hide a self-transfer; requires ≥2 distinct token matches so a
+    shared first name alone never triggers it."""
+    sender_tokens = normalize_name(sender_name)
+    holder_tokens = normalize_name(holder_name)
+    if len(sender_tokens) < 2 or not holder_tokens:
         return False
-    return len(sender_tokens) >= 2 and sender_tokens.issubset(holder_tokens)
+    holder_skeletons = {_skeleton(t) for t in holder_tokens}
+    matches = {_skeleton(t) for t in sender_tokens} & holder_skeletons
+    return len(matches) >= 2
+
+
+def resolve_entities(raw_names: list[str]) -> dict[str, str]:
+    """Silver-layer entity resolution: map every raw sender name to ONE
+    canonical entity key, so narration variants of the same counterparty
+    ('ACME LTD', 'ACME PAYMENTS LTD') cannot masquerade as separate clients.
+
+    Clustering rule: first significant normalized token. Deliberately
+    conservative FOR LENDING — when identity is ambiguous we merge, which
+    can only lower the diversity score, never inflate it.
+    Returns {raw_name: entity_pseudonym}; names never leave this process."""
+    mapping: dict[str, str] = {}
+    for raw in raw_names:
+        tokens = normalize_name(raw)
+        anchor = tokens[0] if tokens else raw.strip().upper()
+        mapping[raw] = pseudonym("ENTITY", _skeleton(anchor) or anchor)
+    return mapping
 
 
 def assert_no_pii(statement: AnonStatement, redact_terms: list[str]) -> None:
@@ -240,6 +293,9 @@ def derive_statement_factors(statement: AnonStatement) -> tuple[FactorScores, di
         hhi_input["ONE_OFF_SENDERS"] = one_off_total
     diversity_score, diversity_ev = diversity_score_from_totals(hhi_input)
     diversity_ev = {
+        "entity_resolution": "senders are entity-resolved in the silver layer — "
+                             "narration variants and multi-rail payments of the "
+                             "same counterparty count as ONE client",
         "recurrence_rule": "a client = income from the same sender in ≥2 distinct "
                            "months; one-off senders pooled into ONE_OFF_SENDERS",
         "recurring_senders": len(recurring),
@@ -331,6 +387,25 @@ def score_statement(statement: AnonStatement) -> dict:
         "source": "IMPORTED_REAL_STATEMENT",
         "anonymization": "PII stripped at ingestion — names, accounts, cards, refs. "
                          "Senders survive only as deterministic pseudonyms.",
+        # Medallion pipeline provenance: bronze (raw, in-memory only) →
+        # silver (anonymized + entity-resolved) → gold (factor derivation).
+        "pipeline": {
+            "bronze": {
+                "stage": "RAW_PARSE",
+                "persisted": False,
+                "note": "Raw PDF text parsed in-memory; PII never written anywhere.",
+            },
+            "silver": statement.silver_meta or {
+                "stage": "CLEANED_ANONYMIZED",
+                "note": "Statement was posted pre-anonymized; silver metadata "
+                        "available when ingested via statement_pdf.py.",
+            },
+            "gold": {
+                "stage": "SCORED",
+                "factors_computed_live": 4,
+                "engine": "VANC",
+            },
+        },
         "period": {"start": statement.period_start, "end": statement.period_end},
         "transaction_count": len(statement.transactions),
         "monthly_buckets": {

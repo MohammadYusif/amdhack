@@ -31,9 +31,9 @@ Customer Name {FAKE_NAME}
 Account Number {FAKE_ACCOUNT}
 IBAN Number {FAKE_IBAN}
 Opening Balance 1,000.00 SAR
-Number Of Deposits 6
+Number Of Deposits 8
 Number Of Withdrawals 3
-Total Deposits 11,013.39 SAR
+Total Deposits 12,301.39 SAR
 Total Withdrawals 3,026.00 SAR
 On The Period 2025/01/01 - 2025/03/31
 City RIYADH
@@ -53,6 +53,14 @@ Inward IPS Credit Transfer
 2025/02/03 0.00 SAR 127.00 SAR 6,101.00 SAR
 Time:10:24:01**Note:
 20250203SAARNBARNB1B23711023882214/SALEM AL HARBI
+Inward IPS Credit Transfer
+2025/02/25 0.00 SAR 1,200.00 SAR 7,301.00 SAR
+Time:16:05:12**Note:
+20250225SAALBIALBI2B11111023882214/DESIGN STUDIO COMPANY
+Inward IPS Credit Transfer
+2025/03/05 0.00 SAR 88.00 SAR 7,389.00 SAR
+Time:09:41:00**Note:
+20250305SANCBKNCBK6B22211023882214/SALIM ALHARBI
 Internal Transfer
 2025/02/15 0.00 SAR 3,000.00 SAR 9,101.00 SAR
 Time:19:44:57**Note:W-/FRACCT/67100608017048719FRCLIENT
@@ -85,11 +93,11 @@ def parsed():
 class TestParsing:
     def test_all_transactions_captured(self, parsed):
         stmt, _ = parsed
-        assert len(stmt.transactions) == 9
+        assert len(stmt.transactions) == 11
 
     def test_totals_match_reported_summary(self, parsed):
         stmt, _ = parsed
-        assert sum(t.credit for t in stmt.transactions) == pytest.approx(11013.39)
+        assert sum(t.credit for t in stmt.transactions) == pytest.approx(12301.39)
         assert sum(t.debit for t in stmt.transactions) == pytest.approx(3026.00)
 
     def test_wrapped_payroll_layout_parsed(self, parsed):
@@ -141,34 +149,86 @@ class TestIncomeClassification:
     def test_self_transfer_detected_and_excluded(self, parsed):
         stmt, _ = parsed
         self_txs = [t for t in stmt.transactions if t.category == "SELF_TRANSFER"]
-        assert len(self_txs) == 1  # SALEM AL HARBI ⊂ SALEM KHALED OMAR AL HARBI
-        assert self_txs[0].credit == pytest.approx(127.00)
+        # exact subset (SALEM AL HARBI) + spelling/concatenation variant
+        # (SALIM ALHARBI) — both are the account holder
+        assert len(self_txs) == 2
+        assert sorted(t.credit for t in self_txs) == [pytest.approx(88.00), pytest.approx(127.00)]
 
     def test_is_self_token_subset(self):
         assert is_self("SALEM AL HARBI", FAKE_NAME)
         assert not is_self("AZIZ SUPPLIER", FAKE_NAME)
         assert not is_self("SALEM", FAKE_NAME)  # single token — too weak
 
+    def test_is_self_spelling_and_concatenation_variant(self):
+        # consonant-skeleton match: SALIM≈SALEM, ALHARBI≈AL HARBI
+        assert is_self("SALIM ALHARBI", FAKE_NAME)
+        assert is_self("SALEM ALHARBI", FAKE_NAME)
+        # a DIFFERENT person sharing the first name must not match
+        assert not is_self("SALEM ALQAHTANI", FAKE_NAME)
+
     def test_third_party_ips_is_income_with_pseudonym(self, parsed):
         stmt, _ = parsed
         income = [t for t in stmt.transactions if t.category == "INCOME" and t.credit == 5000.00]
         assert len(income) == 1
-        assert income[0].counterparty.startswith("SENDER-SASTCJ-")
+        assert income[0].counterparty.startswith("ENTITY-")
 
     def test_internal_transfer_is_p2p(self, parsed):
         stmt, _ = parsed
         p2p = [t for t in stmt.transactions if t.category == "P2P_TRANSFER"]
         assert len(p2p) == 1
-        assert p2p[0].counterparty.startswith("ACCT-")
+        assert p2p[0].counterparty.startswith("ENTITY-")
 
     def test_local_payment_order_is_income_with_payer_pseudonym(self, parsed):
         stmt, _ = parsed
         lpo = [t for t in stmt.transactions if t.credit == 1875.00]
         assert len(lpo) == 1
         assert lpo[0].category == "INCOME"
-        assert lpo[0].counterparty.startswith("SENDER-LPO-")
+        assert lpo[0].counterparty.startswith("ENTITY-")
         # institutional payer name must not survive anonymization
         assert "GULF RESEARCH" not in stmt.model_dump_json().upper()
+
+
+class TestEntityResolution:
+    """Silver-layer entity resolution: narration variants of the same
+    counterparty collapse into ONE entity before pseudonymization."""
+
+    def test_name_variants_share_one_entity(self, parsed):
+        stmt, _ = parsed
+        # DESIGN STUDIO CO (via SASTCJ) and DESIGN STUDIO COMPANY (via SAALBI)
+        # are the same client — one pseudonym, despite different narrations
+        # AND different payment rails
+        design = [t for t in stmt.transactions if t.credit in (5000.00, 1200.00)]
+        assert len(design) == 2
+        assert design[0].counterparty == design[1].counterparty
+
+    def test_silver_meta_reports_merges(self, parsed):
+        stmt, _ = parsed
+        meta = stmt.silver_meta
+        assert meta["stage"] == "CLEANED_ANONYMIZED_ENTITY_RESOLVED"
+        # raw idents: DESIGN STUDIO CO / DESIGN STUDIO COMPANY / SALEM AL
+        # HARBI / SALIM ALHARBI / CLIENT / GULF RESEARCH INSTITUTE = 6
+        assert meta["raw_sender_names"] == 6
+        assert meta["entities_resolved"] == 4
+        assert meta["name_variants_merged"] == 2
+        assert meta["self_transfer_entities"] == 1
+        assert meta["pii_scan"] == "FAIL_CLOSED_ENFORCED"
+
+    def test_merged_entity_becomes_recurring_client(self, parsed):
+        stmt, _ = parsed
+        result = score_statement(stmt)
+        ev = result["evidence"]["client_diversity"]
+        # the merged DESIGN entity paid in Jan AND Feb → a recurring client
+        # that its two one-off variants would have hidden
+        assert ev["recurring_senders"] >= 1
+        assert "entity_resolution" in ev
+
+    def test_pipeline_block_in_response(self, parsed):
+        stmt, _ = parsed
+        result = score_statement(stmt)
+        p = result["pipeline"]
+        assert p["bronze"]["persisted"] is False
+        assert p["silver"]["name_variants_merged"] == 2
+        assert p["gold"]["factors_computed_live"] == 4
 
     def test_visa_refund_credit_excluded_from_income(self, parsed):
         stmt, _ = parsed
@@ -216,9 +276,10 @@ class TestScoring:
     def test_self_transfers_excluded_from_income_buckets(self, parsed):
         stmt, _ = parsed
         result = score_statement(stmt)
-        # Feb income = 3000 P2P only; the 127 self-transfer must not count
-        assert result["monthly_buckets"]["2025-02"]["income"] == pytest.approx(3000.00)
-        assert result["evidence"]["client_diversity"]["excluded_credits"]["SELF_TRANSFER"] == pytest.approx(127.00)
+        # Feb income = 3000 P2P + 1200 DESIGN; the 127 self-transfer must not count
+        assert result["monthly_buckets"]["2025-02"]["income"] == pytest.approx(4200.00)
+        # both self-transfers excluded: 127 exact-name + 88 spelling variant
+        assert result["evidence"]["client_diversity"]["excluded_credits"]["SELF_TRANSFER"] == pytest.approx(215.00)
 
     def test_zero_income_statement_is_building_no_loan(self):
         stmt = AnonStatement(

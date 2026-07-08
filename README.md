@@ -150,6 +150,15 @@ ATM cash deposits, and refunds are detected and excluded from income — the
 anti-income-inflation control — and parsed totals are checked against the
 statement's own printed summary.
 
+The importer is a **medallion pipeline** — bronze (raw parse, in-memory only,
+never persisted) → silver (anonymization + **entity resolution**: narration
+variants and multi-rail payments of the same counterparty collapse into one
+entity, so 30 payments from the same platform via two banks count as ONE client,
+and a spelling-variant self-transfer can't sneak into income) → gold (factor
+derivation + scoring). Deliberately deterministic: when identity is ambiguous the
+engine merges, which can only lower the diversity score — never inflate it — and
+the AI model stays outside ingestion entirely.
+
 **Why the demo narrative still uses simulated Wathq data:** the Trial-tier sandbox returns a single fixed record with the company name privacy-masked (literal `x` characters) for *any* CR number — it does not do real per-CR lookups. So the persona storyline keeps clean simulated names, while the **"خلف الكواليس"** panel proves the live integration honestly, masking and all. All four sources share the same `try-real-then-fallback` architecture, so each one is a drop-in replacement once its regulatory path opens.
 
 ---

@@ -227,6 +227,32 @@ export default function ImportPage() {
             {phase === "result" && result && (
               <motion.div key="result" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
 
+                {/* Medallion pipeline strip — bronze → silver → gold */}
+                <div style={{ display: "flex", gap: 6, marginBottom: 14, direction: "rtl" }}>
+                  {[
+                    { icon: "🥉", title: "خام", sub: `${result.transaction_count} عملية · لا يُحفظ` },
+                    {
+                      icon: "🥈", title: "منقّى",
+                      sub: result.pipeline?.silver?.entities_resolved != null
+                        ? `${result.pipeline.silver.raw_sender_names} اسم ← ${result.pipeline.silver.entities_resolved} كيان`
+                        : "مجهّل الهوية",
+                    },
+                    { icon: "🥇", title: "ذهبي", sub: "٤ عوامل حيّة · VANC" },
+                  ].map((s, i) => (
+                    <motion.div key={s.title}
+                      initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.1 + i * 0.15 }}
+                      style={{
+                        flex: 1, background: "var(--surface)", borderRadius: 14,
+                        border: "1px solid var(--border)", padding: "8px 6px", textAlign: "center",
+                      }}>
+                      <div style={{ fontSize: 15 }}>{s.icon}</div>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: "var(--text-1)" }}>{s.title}</div>
+                      <div style={{ fontSize: 8.5, color: "var(--text-3)", marginTop: 2 }}>{s.sub}</div>
+                    </motion.div>
+                  ))}
+                </div>
+
                 {/* Integrity badge — three states: verified match / mismatch /
                     nothing to verify (statement carried no printed summary) */}
                 {(() => {
