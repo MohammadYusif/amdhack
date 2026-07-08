@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).parent))
 load_dotenv(Path(__file__).parent / ".env")
 
-from models import HumanReviewRequest
+from models import HumanReviewRequest, MihanScore
 from profiles import PROFILES, PROFILE_ORDER
 from scoring import calculate_score, calculate_score_vanc
 from database import init_db, append_audit_log, get_audit_log
@@ -23,6 +23,8 @@ from ai_privacy import build_privacy_proof
 from wathq_simulation import verify_profile_clients, verify_cr
 from simah_simulation import get_simah_report
 from improvement_roadmap import generate_roadmap
+from statement_import import AnonStatement, score_statement
+from statement_explain import explain_import
 
 EXPLANATIONS_PATH = Path(__file__).parent / "explanations.json"
 _explanations: dict = {}
@@ -311,6 +313,46 @@ def rejection_check(data: dict):
         "suggestion_en": "Are you a freelancer? Try our Mihan-powered freelancer financing",
         "mihan_available": True,
     }
+
+
+@app.post("/import-statement")
+def import_statement(statement: AnonStatement, live_ai: bool = False):
+    """
+    Score a REAL, consented, pre-anonymized bank statement through the same
+    VANC pipeline as the demo personas. The payload is produced offline by
+    statement_pdf.py (PII stripped at ingestion, fail-closed scan). Because a
+    real statement carries both sides of the ledger, FOUR of the five factors
+    are computed live here — the on-stage answer to "your cash flow is simulated".
+
+    Includes an improvement roadmap grounded in the statement's own evidence
+    and an AI explanation built from the zero-PII payload (five scores + tier).
+    live_ai=true attempts a live Claude call (template fallback on any failure);
+    the default is the deterministic template so the demo path never blocks.
+    """
+    if not statement.transactions:
+        raise HTTPException(status_code=422, detail="Statement contains no transactions")
+    result = score_statement(statement)
+
+    score_obj = MihanScore(**result["score"])
+    result["roadmap"] = generate_roadmap(
+        "imported-statement", score_obj, import_evidence=result["evidence"]
+    )
+    result["explanation"] = explain_import(score_obj.factors, score_obj, allow_live=live_ai)
+    append_audit_log(
+        profile_id="imported-statement",
+        profile_name="Imported Real Statement (anonymized)",
+        composite_score=result["score"]["composite"],
+        tier=result["score"]["tier"],
+        event="REAL_STATEMENT_SCORED",
+        details=(
+            f"transactions={result['transaction_count']} "
+            f"period={statement.period_start}..{statement.period_end} "
+            f"deposits_match={result['integrity']['deposits_match']} "
+            f"withdrawals_match={result['integrity']['withdrawals_match']}"
+        ),
+        endpoint="/import-statement",
+    )
+    return result
 
 
 @app.get("/health")

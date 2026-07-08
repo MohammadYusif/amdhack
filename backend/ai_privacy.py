@@ -34,20 +34,26 @@ EXCLUDED_FIELDS = [
 ]
 
 
+def build_ai_prompt_from_score(factors, composite: float, tier: str) -> str:
+    """The exact user-message text sent to Claude: anonymized scores only.
+    Takes bare scores so BOTH the persona path and the imported-statement
+    path build their payload through this single function."""
+    return (
+        f"انضباط المصروفات: {factors.expense_discipline}/100\n"
+        f"استقرار الدخل: {factors.income_stability}/100\n"
+        f"تنوع العملاء: {factors.client_diversity}/100\n"
+        f"سلوك الادخار: {factors.savings_behavior}/100\n"
+        f"توثيق العقود: {factors.contract_verification}/100\n"
+        f"النتيجة الإجمالية: {composite}/100\n"
+        f"التصنيف: {tier}\n"
+    )
+
+
 def build_ai_prompt(profile: Profile) -> str:
-    """The exact user-message text sent to Claude: anonymized scores only."""
+    """Persona payload — anonymized scores only."""
     factors, _ = derive_factors(profile)
     score = calculate_score(factors, profile.worst_month_income)
-    f = score.factors
-    return (
-        f"انضباط المصروفات: {f.expense_discipline}/100\n"
-        f"استقرار الدخل: {f.income_stability}/100\n"
-        f"تنوع العملاء: {f.client_diversity}/100\n"
-        f"سلوك الادخار: {f.savings_behavior}/100\n"
-        f"توثيق العقود: {f.contract_verification}/100\n"
-        f"النتيجة الإجمالية: {score.composite}/100\n"
-        f"التصنيف: {score.tier}\n"
-    )
+    return build_ai_prompt_from_score(score.factors, score.composite, score.tier)
 
 
 def build_privacy_proof(profile: Profile) -> dict:

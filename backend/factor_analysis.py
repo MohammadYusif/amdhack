@@ -62,9 +62,10 @@ def _banded_score(cv: float) -> float:
     return CV_SCORE_BANDS[-1][1]
 
 
-def income_stability(profile_id: str) -> tuple[float, dict]:
-    """Score + evidence from month-over-month income variance."""
-    buckets = monthly_income_buckets(profile_id)
+def stability_score_from_buckets(buckets: list) -> tuple[float, dict]:
+    """CV-based stability score from zero-filled monthly income buckets.
+    Shared by the persona pipeline and the real-statement importer so both
+    run through the exact same calibration bands."""
     mu = statistics.mean(buckets)
     if mu == 0:
         return 0.0, {"cv": None, "note": "no income in window"}
@@ -82,11 +83,14 @@ def income_stability(profile_id: str) -> tuple[float, dict]:
     }
 
 
-def client_diversity(profile_id: str) -> tuple[float, dict]:
-    """Score + evidence from HHI concentration across income senders."""
-    per_sender: dict[str, int] = {}
-    for tx in generate_transactions(profile_id):
-        per_sender[tx["sender_iban"]] = per_sender.get(tx["sender_iban"], 0) + tx["amount"]
+def income_stability(profile_id: str) -> tuple[float, dict]:
+    """Score + evidence from month-over-month income variance."""
+    return stability_score_from_buckets(monthly_income_buckets(profile_id))
+
+
+def diversity_score_from_totals(per_sender: dict) -> tuple[float, dict]:
+    """HHI-based diversity score from income totals per sender key.
+    Shared by the persona pipeline and the real-statement importer."""
     total = sum(per_sender.values())
     if total == 0:
         return 0.0, {"hhi": None, "note": "no income in window"}
@@ -103,6 +107,14 @@ def client_diversity(profile_id: str) -> tuple[float, dict]:
         "benchmark_clients": DIVERSITY_CLIENT_BENCHMARK,
         "score": score,
     }
+
+
+def client_diversity(profile_id: str) -> tuple[float, dict]:
+    """Score + evidence from HHI concentration across income senders."""
+    per_sender: dict[str, int] = {}
+    for tx in generate_transactions(profile_id):
+        per_sender[tx["sender_iban"]] = per_sender.get(tx["sender_iban"], 0) + tx["amount"]
+    return diversity_score_from_totals(per_sender)
 
 
 def derive_factors(profile: Profile) -> tuple[FactorScores, dict]:

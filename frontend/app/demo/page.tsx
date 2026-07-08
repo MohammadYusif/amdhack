@@ -160,6 +160,50 @@ export default function DemoPage() {
             </div>
           )}
 
+          {/* Real-statement import entry — جرّب ملفك */}
+          {!loading && (
+            <motion.button
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.32, duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+              onClick={() => router.push("/import")}
+              whileTap={{ scale: 0.97 }}
+              style={{
+                width: "100%", marginTop: 14,
+                background: "linear-gradient(135deg, #0B3D2E 0%, #02141E 100%)",
+                borderRadius: 18, border: "1.5px solid rgba(91,201,143,0.35)",
+                padding: "16px", cursor: "pointer", textAlign: "right",
+                display: "flex", alignItems: "center", gap: 14,
+                boxShadow: "var(--shadow-sm)",
+              }}
+            >
+              <div style={{
+                width: 52, height: 52, borderRadius: 16, flexShrink: 0,
+                background: "rgba(91,201,143,0.15)", border: "1.5px solid rgba(91,201,143,0.3)",
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22,
+              }}>
+                📄
+              </div>
+              <div style={{ flex: 1, textAlign: "right" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, justifyContent: "flex-end" }}>
+                  <span style={{ fontWeight: 700, fontSize: 15, color: "#fff" }}>جرّب ملفك</span>
+                  <span style={{
+                    background: "rgba(91,201,143,0.2)", color: "#5BC98F",
+                    fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 99,
+                  }}>
+                    بيانات حقيقية
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                  كشف حساب حقيقي مجهّل الهوية · ليس محاكاة
+                </div>
+              </div>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ color: "rgba(255,255,255,0.5)", flexShrink: 0 }}>
+                <path d="M9 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </motion.button>
+          )}
+
           {/* Footer branding */}
           <div style={{ marginTop: 28, textAlign: "center", paddingBottom: 8 }}>
             <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 4 }}>مدعوم بـ</div>

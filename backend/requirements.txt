@@ -7,3 +7,4 @@ fpdf2
 qrcode[pil]
 arabic-reshaper
 python-bidi
+pdfplumber  # offline statement anonymizer CLI (statement_pdf.py)

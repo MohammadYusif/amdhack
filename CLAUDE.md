@@ -13,7 +13,7 @@ empty SIMAH files and no Mudad salary record.
 - Docker: `docker compose up --build` (both services)
 - Windows native: `.\start.ps1`
 - Manual: `cd backend && python -m uvicorn main:app --reload --port 9000` + `cd frontend && npm run dev`
-- Tests: `cd backend && python -m pytest tests/` (34 cases: scoring, factor derivation, PII exclusion — must stay green)
+- Tests: `cd backend && python -m pytest tests/` (69 cases: scoring, factor derivation, PII exclusion, statement import, import explanation/roadmap — must stay green)
 - CI: `.github/workflows/ci.yml` runs tests + API smoke + docker build on push
 
 ## Key facts
@@ -38,9 +38,25 @@ empty SIMAH files and no Mudad salary record.
   source of truth for what reaches Claude (five scores + tier, nothing else) —
   used by both `generate_cache.py` and `/ai-privacy-proof`. Never add profile
   fields to `build_ai_prompt`; `tests/test_ai_privacy.py` fails on any leak.
+- **Real-statement importer** (the "your cash flow is simulated" answer):
+  `backend/statement_pdf.py` (offline CLI) parses a real Saudi retail bank-statement
+  PDF and anonymizes it AT ingestion — names/accounts/cards/refs stripped, senders
+  pseudonymized, fail-closed `assert_no_pii` scan. `POST /import-statement` scores
+  the anonymized JSON through the same VANC pipeline with **4 of 5 factors computed
+  live** (stability CV, diversity HHI, expense ratio, savings) plus an integrity
+  check against the statement's own printed totals. The consented anonymized
+  statement for the demo lives in gitignored `team/real_statement_anonymized.json`
+  (bring it to the venue like the `.env`); it scores BUILDING/no-loan — honest, and
+  it demos the self-transfer / cash-deposit income-exclusion controls. Never commit
+  raw statements or statement PDFs. The frontend screen is `/import` («جرّب ملفك»,
+  entry card on `/demo`); the response includes an evidence-grounded roadmap
+  (`improvement_roadmap.py` with `import_evidence`) and a bilingual explanation
+  (`statement_explain.py`: template by default, `?live_ai=true` tries Claude with
+  the same zero-PII payload — five scores + tier — and falls back on any failure).
 - Public pitch materials live in `docs/pitch/`: deck outline, competitive
-  landscape, unit economics, deck screenshots, and the backup video
-  (`mihan_demo_backup.webm`).
+  landscape, unit economics, deck screenshots, and the backup videos
+  (`mihan_demo_backup.webm` for the persona flow, `mihan_import_demo.webm`
+  for the real-statement import flow).
 - Backstage prep (demo script, day-of checklist, team cheat sheet, 72h plan)
   lives in the gitignored `team/` folder — kept out of the judged repo on
   purpose; it contains on-stage framing/Q&A coaching. Not pushed.

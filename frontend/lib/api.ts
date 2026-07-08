@@ -89,6 +89,24 @@ export async function getScoreByVersion(profileId: string, version: "v1" | "v2")
   }
 }
 
+export async function importStatement(
+  statement: import("./types").ImportedStatement,
+  liveAi = false
+): Promise<import("./types").ImportAssessment> {
+  const res = await fetch(`${API}/import-statement?live_ai=${liveAi}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(statement),
+  })
+  if (!res.ok) {
+    const detail = await res.json().catch(() => null)
+    throw new Error(
+      typeof detail?.detail === "string" ? detail.detail : "فشل استيراد كشف الحساب"
+    )
+  }
+  return res.json()
+}
+
 // ── Legacy api object (used by existing apply/ banker/ mihan/ routes) ──
 export const api = {
   getProfiles: () => fetch(`${API}/profiles`).then(r => r.json()) as Promise<Profile[]>,

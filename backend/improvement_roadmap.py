@@ -6,13 +6,20 @@ Each step includes projected score impact and timeline.
 from models import MihanScore
 
 
-def generate_roadmap(profile_id: str, score: MihanScore) -> dict:
+def generate_roadmap(profile_id: str, score: MihanScore, import_evidence: dict | None = None) -> dict:
     """
     Generate improvement actions based on which factors are weakest.
     Returns list of actions sorted by impact (highest first).
+
+    import_evidence: the per-factor evidence map from an imported real
+    statement. When present, actions are grounded in what the statement
+    actually showed (e.g. cash deposits that could not count as income)
+    and the contract action becomes "declare clients" — an import carries
+    no declarations yet, so unverified contracts are not the gap.
     """
     actions = []
     f = score.factors
+    is_import = import_evidence is not None
 
     # Client diversity improvements
     if f.client_diversity < 70:
@@ -64,15 +71,43 @@ def generate_roadmap(profile_id: str, score: MihanScore) -> dict:
 
     # Contract verification improvements
     if f.contract_verification < 60:
-        actions.append({
-            "action_ar": "وقّع عقوداً رسمية مع عملائك عبر منصة Signit",
-            "action_en": "Sign formal contracts with clients via Signit",
-            "factor": "contract_verification",
-            "projected_gain": 10,
-            "timeline_days": 14,
-            "difficulty": "low",
-            "detail_en": "Signit-verified contracts with Nafath authentication are the strongest client verification signal.",
-        })
+        if is_import:
+            actions.append({
+                "action_ar": "صرّح بعملائك في طلب مِهَن ليتم توثيقهم عبر منصة واثق",
+                "action_en": "Declare your clients in the Mihan application for Wathq verification",
+                "factor": "contract_verification",
+                "projected_gain": 8,
+                "timeline_days": 7,
+                "difficulty": "low",
+                "detail_en": "An imported statement carries no client declarations — declaring them "
+                             "lets Wathq verify their commercial registrations, unlocking this factor.",
+            })
+        else:
+            actions.append({
+                "action_ar": "وقّع عقوداً رسمية مع عملائك عبر منصة Signit",
+                "action_en": "Sign formal contracts with clients via Signit",
+                "factor": "contract_verification",
+                "projected_gain": 10,
+                "timeline_days": 14,
+                "difficulty": "low",
+                "detail_en": "Signit-verified contracts with Nafath authentication are the strongest client verification signal.",
+            })
+
+    # Import-specific: income the engine SAW but could not count
+    if is_import:
+        excluded = (import_evidence.get("client_diversity") or {}).get("excluded_credits", {})
+        cash = excluded.get("CASH_DEPOSIT", 0)
+        if cash >= 1000:
+            actions.append({
+                "action_ar": "وجّه دخلك عبر التحويلات البنكية بدلاً من الإيداع النقدي",
+                "action_en": "Route your income through bank transfers instead of cash deposits",
+                "factor": "income_stability",
+                "projected_gain": 6,
+                "timeline_days": 30,
+                "difficulty": "low",
+                "detail_en": f"SAR {cash:,.0f} in cash deposits could not be counted as income — "
+                             "the origin of cash is unverifiable. Traceable transfers count in full.",
+            })
 
     # Expense discipline improvements
     if f.expense_discipline < 65:

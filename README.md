@@ -73,7 +73,22 @@ The model is proven locally: **Tamara** (Saudi BNPL) achieved **+32% approval ra
 <b>The credit officer dashboard</b> — full factor breakdown, SIMAH exception banner, Wathq verification, income trend, and a human decision row. <b>No loan is ever auto-approved.</b>
 </div>
 
-*All 15 walkthrough screenshots live in [`demo_screenshots/`](demo_screenshots/).*
+<table>
+<tr>
+<td width="50%" align="center">
+<img src="demo_screenshots/16_import_cashflow.png" alt="Real statement import — cash flow and exclusions" width="300"/><br/>
+<b>⭐ جرّب ملفك — a REAL statement, not a simulation</b><br/>
+<sub>A consented, <b>anonymized real bank statement (928 transactions)</b> scored through the same VANC engine. Parsed totals match the statement's printed summary to the halala, and <b>SAR 8,690 of self-transfers, cash deposits, and refunds are excluded from income</b> — the engine doesn't flatter real data.</sub>
+</td>
+<td width="50%" align="center">
+<img src="demo_screenshots/19_import_roadmap.png" alt="Import roadmap and zero-PII AI payload" width="300"/><br/>
+<b>⭐ Zero-PII AI + evidence-grounded roadmap</b><br/>
+<sub>The literal payload reaching Claude: <b>five scores and a tier — none of the 928 transactions</b>. Below it, an improvement roadmap derived from the statement itself: 28.3 → 72.3 projected, including "route income through transfers — your SAR 4,800 in cash deposits couldn't count."</sub>
+</td>
+</tr>
+</table>
+
+*All 20 walkthrough screenshots live in [`demo_screenshots/`](demo_screenshots/).*
 
 ---
 
@@ -120,6 +135,20 @@ The demo runs as a mobile-first phone simulation in the browser. Walk through it
 | **Lean AIS** | 🔵 Simulated | Deterministic synthetic transactions. Real AIS access for credit scoring requires the SAMA Regulatory Sandbox (institutional path — mapped in our roadmap). |
 | **SIMAH** | 🔵 Simulated | Bureau access is restricted to licensed financial institutions with a SIMAH membership — only Alinma itself can hold this. |
 | **Nafath** | 🔵 Simulated | Requires a TCC license — a formal government authorization, not an open API. |
+
+**The real-statement importer closes the gap:** because production AIS access is
+license-gated, Mihan also ships an importer that takes a *real, consented* bank
+statement instead. `backend/statement_pdf.py` parses the standard Saudi retail
+statement PDF and anonymizes it **at ingestion** — holder name, accounts, cards,
+and payment refs are stripped before any transaction object exists; income senders
+survive only as deterministic pseudonyms, and a fail-closed PII scan blocks the
+import if anything identifying leaks through. `POST /import-statement` then runs
+the anonymized cash flow through the exact same VANC engine, computing **four of
+the five factors live** (a real statement has both sides of the ledger, so expense
+discipline and savings behavior are derived too, not declared). Self-transfers,
+ATM cash deposits, and refunds are detected and excluded from income — the
+anti-income-inflation control — and parsed totals are checked against the
+statement's own printed summary.
 
 **Why the demo narrative still uses simulated Wathq data:** the Trial-tier sandbox returns a single fixed record with the company name privacy-masked (literal `x` characters) for *any* CR number — it does not do real per-CR lookups. So the persona storyline keeps clean simulated names, while the **"خلف الكواليس"** panel proves the live integration honestly, masking and all. All four sources share the same `try-real-then-fallback` architecture, so each one is a drop-in replacement once its regulatory path opens.
 
@@ -245,6 +274,7 @@ Base URL: `http://localhost:9000`
 | GET | `/profiles/{id}/factor-analysis` | **Live factor derivation** — CV + HHI recomputed from transactions, with evidence |
 | GET | `/profiles/{id}/ai-privacy-proof` | **AI privacy proof** — the literal payload sent to Claude (anonymized scores only, zero PII) |
 | GET | `/wathq-live-proof?cr=` | **On-demand real call to the live Wathq API** — raw response + call metadata |
+| POST | `/import-statement?live_ai=` | **Real-statement importer** — score a consented, pre-anonymized real bank statement through the same VANC pipeline (4 of 5 factors computed live), with an evidence-grounded improvement roadmap and a zero-PII AI explanation (`live_ai=true` tries Claude live, template fallback). Frontend: **`/import` — «جرّب ملفك»** |
 | GET | `/profiles/{id}/simah` | SIMAH thin-file report |
 | GET | `/profiles/{id}/roadmap` | Score-improvement plan |
 | GET | `/profiles/{id}/pipeline/step1…step5` | The five pipeline stages (KYC → Lean → SIMAH → Wathq → scoring) |
@@ -278,6 +308,9 @@ Base URL: `http://localhost:9000`
 │   ├── main.py                 # All API endpoints (incl. /wathq-live-proof)
 │   ├── scoring.py              # 5-factor engine: Phase 1 + VANC
 │   ├── factor_analysis.py      # ⚡ Live factor derivation from transactions (CV + HHI)
+│   ├── statement_import.py     # 📄 Real-statement scoring: 4 live factors + PII fail-closed scan
+│   ├── statement_pdf.py        # 📄 Offline PDF parser/anonymizer CLI (PII stripped at ingestion)
+│   ├── statement_explain.py    # 📄 Import explanation: zero-PII payload, live-Claude-or-template
 │   ├── ai_privacy.py           # 🔒 Zero-PII payload builder for AI explanations (test-enforced)
 │   ├── wathq_api.py            # 🟢 LIVE Wathq client — real gateway, graceful fallback
 │   ├── wathq_simulation.py     # Curated fallback data (live-first via wathq_api)
@@ -285,7 +318,7 @@ Base URL: `http://localhost:9000`
 │   ├── simah_simulation.py     # SIMAH thin-file simulation
 │   ├── models.py · profiles.py · database.py · pdf_gen.py
 │   ├── improvement_roadmap.py · explanations.json · generate_cache.py
-│   ├── tests/                  # 34 pytest cases — tiers, DBR, VANC, factor derivation, PII exclusion
+│   ├── tests/                  # 69 pytest cases — tiers, DBR, VANC, factor derivation, PII exclusion, statement import + explanation
 │   ├── requirements.txt · Dockerfile
 │   └── .env                    # (gitignored) Wathq API credentials — see Quick Start
 ├── frontend/
@@ -301,7 +334,7 @@ Base URL: `http://localhost:9000`
 ├── docs/
 │   ├── assets/                 # Brand assets (logo)
 │   ├── pitch/                  # Deck outline · competitive landscape · unit economics ·
-│   │                           #   screenshots/ · backup video (.webm)
+│   │                           #   screenshots/ · backup video + import-flow video (.webm)
 │   └── research/               # Research brief · regulatory clearance · sample report (PDF)
 ├── docker-compose.yml          # One-command Docker startup (both services)
 └── start.ps1                   # One-command Windows startup

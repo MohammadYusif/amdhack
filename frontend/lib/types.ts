@@ -76,6 +76,59 @@ export interface FullAssessment {
   next_step: "APPROVE_FOR_REVIEW" | "IMPROVEMENT_ROADMAP"
 }
 
+// ── Real-statement import (جرّب ملفك) ──
+
+export interface ImportedTransaction {
+  date: string
+  type: string
+  debit: number
+  credit: number
+  counterparty: string
+  category: string
+}
+
+export interface ImportedStatement {
+  period_start: string
+  period_end: string
+  currency: string
+  opening_balance: number
+  reported_total_deposits: number | null
+  reported_total_withdrawals: number | null
+  transactions: ImportedTransaction[]
+}
+
+export interface ImportAssessment {
+  source: string
+  anonymization: string
+  period: { start: string; end: string }
+  transaction_count: number
+  monthly_buckets: Record<string, { income: number; expenses: number }>
+  effective_factors: FactorScores
+  // per-factor evidence map: provenance + method-specific numbers
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  evidence: Record<string, Record<string, any>>
+  score: MihanScore
+  integrity: {
+    parsed_total_deposits: number
+    reported_total_deposits: number | null
+    parsed_total_withdrawals: number
+    reported_total_withdrawals: number | null
+    deposits_match: boolean
+    withdrawals_match: boolean
+  }
+  roadmap: Roadmap
+  explanation: {
+    ar: string
+    en: string
+    source: "template" | "claude-live"
+    ai_privacy: {
+      payload_sent_to_ai: { model: string; system: string; user_message: string }
+      note_en: string
+      note_ar: string
+    }
+  }
+}
+
 export interface RoadmapAction {
   action_ar: string
   action_en: string
