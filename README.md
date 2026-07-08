@@ -88,7 +88,7 @@ The model is proven locally: **Tamara** (Saudi BNPL) achieved **+32% approval ra
 </tr>
 </table>
 
-*All 20 walkthrough screenshots live in [`demo_screenshots/`](demo_screenshots/).*
+*All 21 walkthrough screenshots live in [`demo_screenshots/`](demo_screenshots/).*
 
 ---
 
@@ -323,8 +323,8 @@ Base URL: `http://localhost:9000`
 │   ├── main.py                 # All API endpoints (incl. /wathq-live-proof)
 │   ├── scoring.py              # 5-factor engine: Phase 1 + VANC
 │   ├── factor_analysis.py      # ⚡ Live factor derivation from transactions (CV + HHI)
-│   ├── statement_import.py     # 📄 Real-statement scoring: 4 live factors + PII fail-closed scan
-│   ├── statement_pdf.py        # 📄 Offline PDF parser/anonymizer CLI (PII stripped at ingestion)
+│   ├── statement_import.py     # 📄 Real-statement scoring: 4 live factors, entity resolution, PII fail-closed scan
+│   ├── statement_pdf.py        # 📄 Offline PDF parser/anonymizer CLI — medallion bronze→silver→gold (PII stripped at ingestion)
 │   ├── statement_explain.py    # 📄 Import explanation: zero-PII payload, live-Claude-or-template
 │   ├── ai_privacy.py           # 🔒 Zero-PII payload builder for AI explanations (test-enforced)
 │   ├── wathq_api.py            # 🟢 LIVE Wathq client — real gateway, graceful fallback
@@ -333,7 +333,7 @@ Base URL: `http://localhost:9000`
 │   ├── simah_simulation.py     # SIMAH thin-file simulation
 │   ├── models.py · profiles.py · database.py · pdf_gen.py
 │   ├── improvement_roadmap.py · explanations.json · generate_cache.py
-│   ├── tests/                  # 69 pytest cases — tiers, DBR, VANC, factor derivation, PII exclusion, statement import + explanation
+│   ├── tests/                  # 74 pytest cases — tiers, DBR, VANC, factor derivation, PII exclusion, statement import + entity resolution + explanation
 │   ├── requirements.txt · Dockerfile
 │   └── .env                    # (gitignored) Wathq API credentials — see Quick Start
 ├── frontend/
@@ -345,7 +345,7 @@ Base URL: `http://localhost:9000`
 │   ├── components/             # Shared UI
 │   ├── lib/                    # config · types · typed API helpers
 │   └── Dockerfile              # Multi-stage Next.js standalone build
-├── demo_screenshots/           # Full 20-shot walkthrough incl. the /import flow (used above)
+├── demo_screenshots/           # Full 21-shot walkthrough incl. the /import flow (used above)
 ├── docs/
 │   ├── assets/                 # Brand assets (logo)
 │   ├── pitch/                  # Deck outline · competitive landscape · unit economics ·

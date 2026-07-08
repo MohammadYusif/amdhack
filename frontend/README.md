@@ -36,7 +36,8 @@ override — it's baked in at build time, so rebuild the image after changing it
 - [`app/demo/`](app/demo) — `/demo` persona selector + full demo flow
 - [`app/import/`](app/import) — `/import` **«جرّب ملفك»**: score a real, consented,
   pre-anonymized bank statement (JSON from `backend/statement_pdf.py`) through the
-  same VANC engine — integrity badge, monthly cash-flow bars, income-exclusion
+  same VANC engine — a bronze→silver→gold medallion-pipeline strip (raw →
+  entity-resolved → scored), integrity badge, monthly cash-flow bars, income-exclusion
   callout, provenance-labeled factors, zero-PII AI explanation, improvement roadmap
 - [`app/apply/`](app/apply), [`app/banker/`](app/banker) — applicant and officer-side screens
 - [`lib/`](lib) — API client, types, i18n helpers, brand/tier config

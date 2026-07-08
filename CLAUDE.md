@@ -13,7 +13,7 @@ empty SIMAH files and no Mudad salary record.
 - Docker: `docker compose up --build` (both services)
 - Windows native: `.\start.ps1`
 - Manual: `cd backend && python -m uvicorn main:app --reload --port 9000` + `cd frontend && npm run dev`
-- Tests: `cd backend && python -m pytest tests/` (69 cases: scoring, factor derivation, PII exclusion, statement import, import explanation/roadmap — must stay green)
+- Tests: `cd backend && python -m pytest tests/` (74 cases: scoring, factor derivation, PII exclusion, statement import, entity resolution, import explanation/roadmap — must stay green)
 - CI: `.github/workflows/ci.yml` runs tests + API smoke + docker build on push
 
 ## Key facts
