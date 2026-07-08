@@ -15,7 +15,9 @@ from statement_import import (
     AnonStatement,
     AnonTransaction,
     assert_no_pii,
+    entity_key,
     is_self,
+    resolve_entities,
     score_statement,
     scrub,
 )
@@ -229,6 +231,51 @@ class TestEntityResolution:
         assert p["bronze"]["persisted"] is False
         assert p["silver"]["name_variants_merged"] == 2
         assert p["gold"]["factors_computed_live"] == 4
+
+
+class TestEntityKeying:
+    """Direct unit tests for entity_key/resolve_entities — the anti-over-merge
+    guarantees the hardening commit exists to provide. If a future edit
+    reintroduces single-token or skeleton-based clustering, these fail."""
+
+    def _distinct(self, names):
+        return len(set(resolve_entities(names).values()))
+
+    def test_shared_first_name_people_never_merge(self):
+        assert self._distinct(["AHMED ALI", "AHMED HASSAN"]) == 2
+        assert self._distinct(["MOHAMMED ALGHAMDI", "MOHAMMED ALQAHTANI"]) == 2
+
+    def test_shared_first_word_companies_never_merge(self):
+        assert self._distinct(["SAUDI TELECOM", "SAUDI AIRLINES"]) == 2
+        # descriptors DISTINGUISH — they must not be dropped as suffixes
+        assert self._distinct(["SAUDI TRADING", "SAUDI HOLDING"]) == 2
+
+    def test_legal_form_suffix_variants_merge(self):
+        assert self._distinct(["DESIGN STUDIO CO", "DESIGN STUDIO COMPANY"]) == 1
+        assert self._distinct(["ACME EST", "ACME ESTABLISHMENT"]) == 1
+
+    def test_token_order_is_irrelevant(self):
+        assert entity_key("ALI HASSAN TRADING") == entity_key("TRADING HASSAN ALI")
+
+    def test_arabic_presentation_forms_tokenize(self):
+        # pdfplumber emits presentation-form glyphs; NFKC folding must yield
+        # real tokens, not an empty key
+        assert entity_key("ﺪﻤﺤﻣ ﺪﻤﺣﺍ") is not None
+        # and different Arabic names stay distinct
+        assert self._distinct(["ﺪﻤﺤﻣ ﺪﻤﺣﺍ", "ﺪﻤﺤﻣ ﻲﻠﻋ"]) == 2
+
+    def test_no_significant_tokens_falls_back_without_fake_merge(self):
+        # identity-less strings: identical raws merge, distinct ones don't
+        assert self._distinct(["12345", "67890"]) == 2
+        assert self._distinct(["12345", "12345"]) == 1
+
+    def test_pseudonyms_are_deterministic_and_name_free(self):
+        m1 = resolve_entities(["DESIGN STUDIO CO"])
+        m2 = resolve_entities(["DESIGN STUDIO CO"])
+        assert m1 == m2
+        pseud = m1["DESIGN STUDIO CO"]
+        assert pseud.startswith("ENTITY-")
+        assert "DESIGN" not in pseud and "STUDIO" not in pseud
 
     def test_visa_refund_credit_excluded_from_income(self, parsed):
         stmt, _ = parsed

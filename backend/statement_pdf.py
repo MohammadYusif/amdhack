@@ -266,7 +266,7 @@ def parse_statement_text(pages_text: list[str]) -> tuple[AnonStatement, list[str
     # Count DISTINCT true entities: every self-flagged variant collapses to
     # the single account holder; income entities are the rest. Merges = raw
     # narration names seen minus true entities they resolved to.
-    distinct_raws = len({i for i in named_idents})
+    distinct_raws = len(set(named_idents))
     income_entities = {
         entity_map[i] for i in named_idents if entity_map[i] not in self_entities
     }

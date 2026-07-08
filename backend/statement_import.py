@@ -133,8 +133,11 @@ def scrub(text: str) -> str:
 def pseudonym(prefix: str, identifier: str) -> str:
     """Deterministic, non-reversible sender key. crc32 (not hash()) so the
     same sender maps to the same key across restarts — same reasoning as
-    the simulation seeds."""
-    return f"{prefix}-{zlib.crc32(identifier.strip().upper().encode()) % 100000:05d}"
+    the simulation seeds. Full 32-bit space (not truncated): a pseudonym
+    collision would silently merge two entities in the diversity HHI, and
+    truncating to 5 digits gave ~0.8% collision odds per 40-entity
+    statement for no benefit."""
+    return f"{prefix}-{zlib.crc32(identifier.strip().upper().encode()):08x}"
 
 
 _VOWELS = re.compile(r"[AEIOU]")
