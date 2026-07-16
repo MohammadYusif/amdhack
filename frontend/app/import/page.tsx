@@ -263,8 +263,17 @@ export default function ImportPage() {
                 {/* Integrity badge — three states: verified match / mismatch /
                     nothing to verify (statement carried no printed summary) */}
                 {(() => {
-                  const verifiable = result.integrity.reported_total_deposits != null
-                  const ok = result.integrity.deposits_match && result.integrity.withdrawals_match
+                  // Each reported total is parsed by its own regex and is
+                  // independently nullable, and *_match is false when the
+                  // reported figure is absent. So only judge the sides the
+                  // statement actually printed — otherwise a statement whose
+                  // deposits parse perfectly but whose withdrawals summary is
+                  // missing gets accused of failing its own integrity check.
+                  const depReported = result.integrity.reported_total_deposits != null
+                  const wdReported = result.integrity.reported_total_withdrawals != null
+                  const verifiable = depReported || wdReported
+                  const ok = (!depReported || result.integrity.deposits_match)
+                    && (!wdReported || result.integrity.withdrawals_match)
                   const bg = !verifiable ? "var(--surface-2)"
                     : ok ? "var(--tier-green-bg, #E8F5ED)" : "var(--tier-red-bg, #FDE8E8)"
                   const fg = !verifiable ? "var(--text-2)"
