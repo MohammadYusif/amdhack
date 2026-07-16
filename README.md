@@ -378,7 +378,7 @@ Base URL: `http://localhost:9000`
 │   ├── simah_simulation.py     # SIMAH thin-file simulation
 │   ├── models.py · profiles.py · database.py · pdf_gen.py
 │   ├── improvement_roadmap.py · explanations.json · generate_cache.py
-│   ├── tests/                  # 121 pytest cases — tiers, DBR, VANC, factor derivation, PII exclusion, statement import + entity resolution + explanation, regulatory XAI, forward-outlook, underwriting agent
+│   ├── tests/                  # 132 pytest cases — tiers, DBR, VANC, factor derivation, PII exclusion, statement import + entity resolution + explanation, regulatory XAI, forward-outlook, underwriting agent (incl. Arabic-chip parity)
 │   ├── requirements.txt · Dockerfile
 │   └── .env                    # (gitignored) Wathq API credentials — see Quick Start
 ├── frontend/

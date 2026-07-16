@@ -61,7 +61,7 @@ export default function UnderwriterAgent({
       setTurns((t) =>
         t.map((turn, i) =>
           i === t.length - 1
-            ? { ...turn, a: { answer_en: isEn ? "Agent unavailable." : "الوكيل غير متاح.", grounding: [], source: "template" } }
+            ? { ...turn, a: { answer_en: "Agent unavailable.", answer_ar: "الوكيل غير متاح.", grounding: [], source: "template" } }
             : turn
         )
       );
@@ -141,7 +141,7 @@ export default function UnderwriterAgent({
                 {t.q}
               </p>
               <p style={{ fontSize: 12, color: "var(--text-2)", lineHeight: 1.6, padding: "6px 10px" }}>
-                {t.a ? t.a.answer_en : (isEn ? "…" : "…")}
+                {t.a ? (isEn ? t.a.answer_en : (t.a.answer_ar ?? t.a.answer_en)) : "…"}
                 {t.a && (
                   <span style={{ fontSize: 9, color: "var(--text-3)", marginInlineStart: 6 }}>
                     [{t.a.source}]

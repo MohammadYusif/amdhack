@@ -290,6 +290,9 @@ export interface AgentAnswer {
   profile_id?: string
   question?: string
   answer_en: string
+  // null on live-Claude answers (the model answers in the question's
+  // language directly); template answers always carry both languages
+  answer_ar?: string | null
   grounding: string[]
   source: "template" | "claude-live"
 }

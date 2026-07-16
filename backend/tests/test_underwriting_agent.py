@@ -163,3 +163,65 @@ def test_answers_are_deterministic():
     a = answer_question("forward risk?", ctx)
     b = answer_question("forward risk?", ctx)
     assert a == b
+
+
+# ---------------------------------------------------------------------------
+# Arabic parity — the dashboard is Arabic-first, and the UI's own suggestion
+# chips are Arabic. Screenshot QA caught 3 of the 4 chips falling back to the
+# generic summary (singular "خطر" vs plural keyword "مخاطر"; the shadda in
+# "التحيّز" defeating raw substring match; broken plural "الشروط" vs "شرط"),
+# answered in English. These pin routing AND answer language per chip.
+# ---------------------------------------------------------------------------
+
+ARABIC_CHIPS = [  # (the exact chip text the UI offers, expected primary grounding)
+    ("ما وضع القدرة على السداد / نسبة الدين؟", "dbr"),
+    ("أكبر خطر خلال الأشهر الستة القادمة؟", "forward"),
+    ("هل القرار خاضع لفحص التحيّز وعادل؟", "fairness"),
+    ("ما الشروط التي تقترحها؟", "conditions"),
+]
+
+
+def _has_arabic(text: str) -> bool:
+    return any("؀" <= c <= "ۿ" for c in text)
+
+
+@pytest.mark.parametrize("question,intent", ARABIC_CHIPS)
+def test_arabic_chip_routes_to_intent_not_summary(question, intent):
+    ctx = _persona_context("fahad")
+    r = answer_question(question, ctx)
+    assert intent in r["grounding"], f"chip fell back to {r['grounding']}"
+    assert r["grounding"] != ["summary"]
+
+
+@pytest.mark.parametrize("question,intent", ARABIC_CHIPS)
+def test_arabic_chip_gets_arabic_answer(question, intent):
+    ctx = _persona_context("fahad")
+    r = answer_question(question, ctx)
+    assert r["answer_ar"], "template answers must always carry answer_ar"
+    assert _has_arabic(r["answer_ar"])
+
+
+def test_english_and_arabic_chip_route_identically():
+    ctx = _persona_context("fahad")
+    pairs = [
+        ("Biggest risk over the next 6 months?", "أكبر خطر خلال الأشهر الستة القادمة؟"),
+        ("Is this decision bias-checked and fair?", "هل القرار خاضع لفحص التحيّز وعادل؟"),
+        ("What conditions would you attach?", "ما الشروط التي تقترحها؟"),
+    ]
+    for en, ar in pairs:
+        assert answer_question(en, ctx)["grounding"] == answer_question(ar, ctx)["grounding"]
+
+
+def test_diacritics_and_alef_variants_do_not_break_matching():
+    ctx = _persona_context("noura")
+    # shadda + alef-hamza forms of the same fairness question
+    assert "fairness" in answer_question("هل يوجد تحيّز؟", ctx)["grounding"]
+    assert "fairness" in answer_question("هل يوجد تحيز؟", ctx)["grounding"]
+    assert "forward" in answer_question("أكبر الأخطار؟", ctx)["grounding"]
+
+
+def test_fallback_summary_is_bilingual():
+    ctx = _persona_context("noura")
+    r = answer_question("طقس الرياض اليوم", ctx)  # genuinely off-topic
+    assert r["grounding"] == ["summary"]
+    assert r["answer_ar"] and _has_arabic(r["answer_ar"])

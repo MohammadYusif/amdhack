@@ -13,7 +13,7 @@ empty SIMAH files and no Mudad salary record.
 - Docker: `docker compose up --build` (both services)
 - Windows native: `.\start.ps1`
 - Manual: `cd backend && python -m uvicorn main:app --reload --port 9000` + `cd frontend && npm run dev`
-- Tests: `cd backend && python -m pytest tests/` (121 cases: scoring, factor derivation, PII exclusion, statement import, entity resolution, import explanation/roadmap, regulatory XAI, forward-outlook predictive model, underwriting agent — must stay green)
+- Tests: `cd backend && python -m pytest tests/` (132 cases: scoring, factor derivation, PII exclusion, statement import, entity resolution, import explanation/roadmap, regulatory XAI, forward-outlook predictive model, underwriting agent incl. Arabic-chip parity — must stay green)
 - CI: `.github/workflows/ci.yml` runs tests + API smoke + docker build on push
 
 ## Key facts
@@ -108,7 +108,14 @@ empty SIMAH files and no Mudad salary record.
     `/import-statement`. Frontend: `UnderwriterAgent` (the one client
     component in `/banker/[id]`). Chat is MULTI-INTENT: `answer_question`
     composes ALL matching intents (up to 3) with union grounding, plus a
-    `what_if` handler for curveballs (directional, no invented numbers). The
+    `what_if` handler for curveballs (directional, no invented numbers).
+    Chat is BILINGUAL: every template handler returns `answer_en` AND
+    `answer_ar` (UI renders by language, falls back to EN for live answers),
+    and keyword matching normalizes Arabic first (strip harakat/shadda/
+    tatweel, fold alef variants) with singular AND broken-plural stems —
+    "خطر/مخاطر/أخطار", "شرط/شروط" — because the UI's own Arabic suggestion
+    chips otherwise fall through to the generic summary (this shipped broken
+    once; `test_underwriting_agent.py` Arabic-parity tests pin it). The
     context includes a `volatility` block (μ, σ, μ−1.5σ income, and the
     conservatism haircut) so the agent can explain the VANC penalty — driven by
     `MihanScore.vanc_mean` / `vanc_sigma`.

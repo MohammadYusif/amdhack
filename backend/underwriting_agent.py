@@ -42,7 +42,8 @@ AGENT_SYSTEM_PROMPT = (
     "default probability, and adverse-action reason codes) — never any personal "
     "data or raw transactions. Answer the officer's question concisely and only "
     "from the aggregate provided. Never invent figures. Be decisive but always "
-    "defer the final decision to the human officer."
+    "defer the final decision to the human officer. Respond in the same language "
+    "as the officer's question (Arabic questions get Arabic answers)."
 )
 
 
@@ -226,110 +227,170 @@ def draft_recommendation(context: dict, *, allow_live: bool = False) -> dict:
 # Grounded chat Q&A
 # ---------------------------------------------------------------------------
 
+# Arabic text folds before keyword matching: harakat + shadda diacritics and
+# tatweel are cosmetic (the officer chip says "التحيّز" — with shadda — while a
+# keyword stores "تحيز"), and alef variants (أ إ آ) are interchangeable in
+# real-world typing. Without this fold, substring matching silently fails on
+# perfectly normal Arabic and the question drops to the generic summary.
+_AR_DIACRITICS = re.compile(r"[ً-ْـ]")
+_AR_ALEF = re.compile(r"[أإآ]")
+
+
+def _normalize(text: str) -> str:
+    text = _AR_DIACRITICS.sub("", text)
+    text = _AR_ALEF.sub("ا", text)
+    return text.lower()
+
+
 def _match(question: str, keywords: tuple[str, ...]) -> bool:
-    q = question.lower()
-    return any(k in q for k in keywords)
+    q = _normalize(question)
+    return any(_normalize(k) in q for k in keywords)
 
 
-# --- Intent handlers: each returns (answer_text, grounding_list) ------------
+# --- Intent handlers: each returns (answer_en, answer_ar, grounding) --------
+# Bilingual by construction: the officer dashboard is Arabic-first, so an
+# Arabic question must get an Arabic answer — the English field is for the
+# EN toggle and the audit trail. Technical tokens (band, DBR, μ/σ) stay
+# inline in English per the app-wide design rule.
 
-def _ans_dbr(ctx: dict) -> tuple[str, list[str]]:
+def _ans_dbr(ctx: dict) -> tuple[str, str, list[str]]:
     dbr = ctx["dbr"]
-    ans = (
+    en = (
         f"Affordability is set by SAMA Art. 14(b): 45% of the {dbr['income_basis_sar']:,} SAR "
         f"underwriting income = {dbr['max_installment_sar']:,} SAR max installment. "
         f"Offered {dbr['offered_installment_sar']:,} SAR, headroom {dbr['headroom_sar']:,} SAR"
         + (" — offer is compressed to the ceiling." if dbr["compressed"] else ".")
     )
-    return ans, ["dbr"]
+    ar = (
+        f"القدرة على السداد وفق ساما م.14(ب): 45% من دخل الاكتتاب البالغ {dbr['income_basis_sar']:,} ريال "
+        f"= حد أقصى للقسط {dbr['max_installment_sar']:,} ريال. "
+        f"القسط المعروض {dbr['offered_installment_sar']:,} ريال، والهامش المتاح {dbr['headroom_sar']:,} ريال"
+        + (" — العرض مخفّض إلى السقف." if dbr["compressed"] else ".")
+    )
+    return en, ar, ["dbr"]
 
 
-def _ans_forward(ctx: dict) -> tuple[str, list[str]]:
+def _ans_forward(ctx: dict) -> tuple[str, str, list[str]]:
     fwd = ctx["forward"]
     sig = fwd["top_signals"][0] if fwd["top_signals"] else None
-    ans = (
+    en = (
         f"Forward 6-month default probability is {fwd['pd_6m_pct']}% ({fwd['band']}), "
         f"income trend {fwd['trend'].lower()} ({fwd['trend_pct_per_month']}%/mo)."
         + (f" Largest driver: {sig['label_en']} (contribution {sig['contribution']})." if sig else "")
     )
-    return ans, ["forward"]
+    ar = (
+        f"احتمالية التعثّر خلال 6 أشهر هي {fwd['pd_6m_pct']}% ({fwd['band']})، "
+        f"واتجاه الدخل {fwd['trend']} بمعدل {fwd['trend_pct_per_month']}% شهرياً."
+        + (f" أكبر مساهم في المخاطر: {sig['label_ar']} (المساهمة {sig['contribution']})." if sig else "")
+    )
+    return en, ar, ["forward"]
 
 
-def _ans_fairness(ctx: dict) -> tuple[str, list[str]]:
-    ans = (
-        f"Fairness: {ctx['fairness']['protected_attributes_used']} protected attributes are used "
-        f"in the score, and AI-payload PII exposure is {ctx['fairness']['ai_pii_exposure']}. "
+def _ans_fairness(ctx: dict) -> tuple[str, str, list[str]]:
+    n = ctx["fairness"]["protected_attributes_used"]
+    exposure = ctx["fairness"]["ai_pii_exposure"]
+    en = (
+        f"Fairness: {n} protected attributes are used "
+        f"in the score, and AI-payload PII exposure is {exposure}. "
         "The model is a fixed, published linear model, so every attribution is exact."
     )
-    return ans, ["fairness"]
+    ar = (
+        f"العدالة: عدد الخصائص المحمية المستخدمة في النتيجة {n}، "
+        f"وتعرّض حمولة الذكاء الاصطناعي للبيانات الشخصية: {exposure}. "
+        "النموذج خطي ثابت ومنشور المعاملات، لذا كل إسناد للعوامل دقيق وليس تقريبياً."
+    )
+    return en, ar, ["fairness"]
 
 
-def _ans_conditions(ctx: dict) -> tuple[str, list[str]]:
+def _ans_conditions(ctx: dict) -> tuple[str, str, list[str]]:
     conds = _conditions(ctx)
     if not conds:
-        ans = "No special conditions required — standard approval terms apply."
+        en = "No special conditions required — standard approval terms apply."
+        ar = "لا حاجة لشروط خاصة — تسري أحكام الموافقة القياسية."
     else:
-        ans = "Suggested conditions: " + " ".join(f"({i+1}) {c['en']}" for i, c in enumerate(conds))
-    return ans, ["conditions"]
+        en = "Suggested conditions: " + " ".join(f"({i+1}) {c['en']}" for i, c in enumerate(conds))
+        ar = "الشروط المقترحة: " + " ".join(f"({i+1}) {c['ar']}" for i, c in enumerate(conds))
+    return en, ar, ["conditions"]
 
 
-def _ans_adverse(ctx: dict) -> tuple[str, list[str]]:
+def _ans_adverse(ctx: dict) -> tuple[str, str, list[str]]:
     if ctx["adverse_reasons"]:
-        reasons = "; ".join(r["reason_en"] for r in ctx["adverse_reasons"])
-        ans = f"Principal adverse-action reasons: {reasons}"
+        en = "Principal adverse-action reasons: " + "; ".join(r["reason_en"] for r in ctx["adverse_reasons"])
+        ar = "الأسباب الرئيسية للإجراء السلبي: " + "؛ ".join(r["reason_ar"] for r in ctx["adverse_reasons"])
     else:
-        ans = "No adverse action on this file — the application clears the financing threshold."
-    return ans, ["adverse_reasons"]
+        en = "No adverse action on this file — the application clears the financing threshold."
+        ar = "لا يوجد إجراء سلبي على هذا الملف — الطلب يتجاوز عتبة التمويل."
+    return en, ar, ["adverse_reasons"]
 
 
-def _ans_strength(ctx: dict) -> tuple[str, list[str]]:
+def _ans_strength(ctx: dict) -> tuple[str, str, list[str]]:
     top = ctx["principal_factors"][0]
-    ans = f"Strongest driver is {top['label_en']} at {top['score']}/100 ({top['contribution_pct']}% of the composite)."
-    return ans, ["principal_factors"]
+    en = f"Strongest driver is {top['label_en']} at {top['score']}/100 ({top['contribution_pct']}% of the composite)."
+    ar = f"أقوى عامل هو {top['label_ar']} بدرجة {top['score']}/100 ({top['contribution_pct']}% من النتيجة الإجمالية)."
+    return en, ar, ["principal_factors"]
 
 
-def _ans_stability(ctx: dict) -> tuple[str, list[str]]:
+def _ans_stability(ctx: dict) -> tuple[str, str, list[str]]:
     f = ctx["factors"]
     fwd = ctx["forward"]
-    ans = (
+    en = (
         f"Income stability {f['income_stability']}/100, client diversity {f['client_diversity']}/100. "
         f"Six-month income trend is {fwd['trend'].lower()} at {fwd['trend_pct_per_month']}%/mo."
+    )
+    ar = (
+        f"استقرار الدخل {f['income_stability']}/100، وتنوع العملاء {f['client_diversity']}/100. "
+        f"اتجاه الدخل خلال 6 أشهر {fwd['trend']} بمعدل {fwd['trend_pct_per_month']}% شهرياً."
     )
     grounding = ["factors", "forward"]
     vol = ctx.get("volatility")
     if vol and vol.get("sigma_sar") is not None:
-        ans += (
+        en += (
             f" Underwriting is deliberately conservative: average income SAR "
             f"{vol['mean_monthly_income_sar']:,}, but the μ−1.5σ underwriting income is "
             f"SAR {vol['underwriting_income_sar']:,} — a SAR {vol['conservatism_haircut_sar']:,} "
             f"haircut driven by volatility (σ = SAR {vol['sigma_sar']:,})."
         )
+        ar += (
+            f" الاكتتاب متحفّظ عمداً: متوسط الدخل {vol['mean_monthly_income_sar']:,} ريال، "
+            f"بينما دخل الاكتتاب (μ−1.5σ) هو {vol['underwriting_income_sar']:,} ريال — "
+            f"خصم قدره {vol['conservatism_haircut_sar']:,} ريال بسبب التقلب (σ = {vol['sigma_sar']:,} ريال)."
+        )
         grounding.append("volatility")
-    return ans, grounding
+    return en, ar, grounding
 
 
-def _ans_what_if(ctx: dict) -> tuple[str, list[str]]:
+def _ans_what_if(ctx: dict) -> tuple[str, str, list[str]]:
     """Curveball / hypothetical. Directional and honest — names which factors a
     change would move and defers to a re-score for numbers. Never invents figures."""
     fwd = ctx["forward"]
-    ans = (
+    en = (
         "Directional read only (not a re-score): a new recurring high-value client would raise "
         "client diversity and, if sustained across months, income stability — both lift the composite "
         f"from {ctx['composite']} and widen DBR headroom via higher underwriting income. The binding "
         f"constraint today is the {ctx['tier']} composite with a {fwd['band']} 6-month outlook. "
         "Re-run the assessment with the updated statement to quantify the new score and offer."
     )
-    return ans, ["what_if", "forward"]
+    ar = (
+        "قراءة اتجاهية فقط (وليست إعادة تقييم): عميل جديد متكرر بقيمة عالية سيرفع تنوع العملاء، "
+        "وإذا استمر عبر الأشهر فسيرفع استقرار الدخل أيضاً — وكلاهما يرفع النتيجة الإجمالية من "
+        f"{ctx['composite']} ويوسّع هامش نسبة الدين عبر دخل اكتتاب أعلى. القيد الأساسي اليوم هو تصنيف "
+        f"{ctx['tier']} مع نظرة مستقبلية {fwd['band']} لستة أشهر. "
+        "أعد التقييم بالكشف المحدّث لتحديد النتيجة والعرض الجديدين."
+    )
+    return en, ar, ["what_if", "forward"]
 
 
 # (keywords, handler) — evaluated in this order; ALL matches compose one answer.
+# Arabic keywords must cover the app's own suggestion chips: singular AND
+# broken-plural stems ("خطر" is not a substring of "مخاطر", nor "شرط" of
+# "الشروط"), or the chips the UI offers route to the generic summary.
 INTENTS = [
     (("dbr", "install", "afford", "capacity", "قسط", "نسبة الدين", "سداد", "طاقة"), _ans_dbr),
     (("risk", "default", "6 month", "forward", "future", "next", "outlook",
-      "تعثر", "مخاطر", "مستقبل", "احتمال"), _ans_forward),
-    (("fair", "bias", "discrimin", "protected", "عدال", "تحيز", "تمييز"), _ans_fairness),
-    (("condition", "covenant", "escrow", "mitigat", "شرط", "ضمان", "تخفيف"), _ans_conditions),
-    (("declin", "reject", "why not", "adverse", "رفض", "سبب"), _ans_adverse),
+      "تعثر", "خطر", "مخاطر", "أخطار", "مستقبل", "احتمال", "قادم"), _ans_forward),
+    (("fair", "bias", "discrimin", "protected", "عدال", "عادل", "تحيز", "تمييز"), _ans_fairness),
+    (("condition", "covenant", "escrow", "mitigat", "شرط", "شروط", "تقترح", "ضمان", "تخفيف"), _ans_conditions),
+    (("declin", "reject", "why not", "adverse", "رفض", "سبب", "أسباب", "لماذا"), _ans_adverse),
     (("strong", "best", "strength", "أقوى", "قوة", "أفضل"), _ans_strength),
     (("trend", "volatil", "stability", "concentr", "divers", "client",
       "اتجاه", "تقلب", "استقرار", "تنوع", "تركز", "عملاء"), _ans_stability),
@@ -351,7 +412,11 @@ def answer_question(question: str, context: dict, *, allow_live: bool = False) -
     if allow_live:
         live = _live_answer(q, context)
         if live:
-            return {"answer_en": live, "grounding": ["forward", "dbr", "principal_factors"],
+            # the model is instructed to answer in the question's language, so
+            # the text is already language-appropriate; answer_ar stays None
+            # and the UI falls back to this field.
+            return {"answer_en": live, "answer_ar": None,
+                    "grounding": ["forward", "dbr", "principal_factors"],
                     "source": "claude-live"}
 
     matches = [handler(context) for keywords, handler in INTENTS if _match(q, keywords)]
@@ -359,20 +424,27 @@ def answer_question(question: str, context: dict, *, allow_live: bool = False) -
 
     if not matches:
         fwd = context["forward"]
-        ans = (
+        en = (
             f"{context['tier']} tier (composite {context['composite']}); decision {context['decision']}. "
             f"Forward 6-month default probability {fwd['pd_6m_pct']}% ({fwd['band']}). "
             "Ask about affordability/DBR, forward risk, fairness, conditions, or why the decision was made."
         )
-        return {"answer_en": ans, "grounding": ["summary"], "source": "template"}
+        ar = (
+            f"تصنيف {context['tier']} (النتيجة الإجمالية {context['composite']})؛ القرار {context['decision']}. "
+            f"احتمالية التعثّر خلال 6 أشهر {fwd['pd_6m_pct']}% ({fwd['band']}). "
+            "اسأل عن القدرة على السداد/نسبة الدين، المخاطر المستقبلية، العدالة، الشروط، أو أسباب القرار."
+        )
+        return {"answer_en": en, "answer_ar": ar, "grounding": ["summary"], "source": "template"}
 
-    answer = " ".join(text for text, _ in matches)
+    answer_en = " ".join(en for en, _, _ in matches)
+    answer_ar = " ".join(ar for _, ar, _ in matches)
     grounding: list[str] = []
-    for _, gs in matches:
+    for _, _, gs in matches:
         for g in gs:
             if g not in grounding:
                 grounding.append(g)
-    return {"answer_en": answer, "grounding": grounding, "source": "template"}
+    return {"answer_en": answer_en, "answer_ar": answer_ar,
+            "grounding": grounding, "source": "template"}
 
 
 # ---------------------------------------------------------------------------
