@@ -291,6 +291,10 @@ Base URL: `http://localhost:9000`
 | GET | `/profiles/{id}/wathq` | Wathq client verification (live-first, simulated fallback) |
 | GET | `/profiles/{id}/factor-analysis` | **Live factor derivation** — CV + HHI recomputed from transactions, with evidence |
 | GET | `/profiles/{id}/ai-privacy-proof` | **AI privacy proof** — the literal payload sent to Claude (anonymized scores only, zero PII) |
+| GET | `/profiles/{id}/regulatory-explainability` | **Auditor-ready XAI** — exact factor attribution, DBR arithmetic, fair-lending adverse-action notice, input-level fairness attestation |
+| GET | `/profiles/{id}/forward-outlook` | **Forward-looking default probability** (6-mo) — transparent logistic over hybrid cash-flow + SIMAH + Wathq signals, fully decomposed |
+| GET | `/profiles/{id}/underwriter-recommendation` | **Autonomous underwriter** — auto-drafted recommendation, rationale, conditions, confidence (zero-PII aggregate) |
+| POST | `/agent/ask` | **Underwriter agent chat** — grounded Q&A over the zero-PII aggregate (`{profile_id, question, live_ai}`) |
 | GET | `/wathq-live-proof?cr=` | **On-demand real call to the live Wathq API** — raw response + call metadata |
 | POST | `/import-statement?live_ai=` | **Real-statement importer** — score a consented, pre-anonymized real bank statement through the same VANC pipeline (4 of 5 factors computed live), with an evidence-grounded improvement roadmap and a zero-PII AI explanation (`live_ai=true` tries Claude live, template fallback). Frontend: **`/import` — «جرّب ملفك»** |
 | GET | `/profiles/{id}/simah` | SIMAH thin-file report |
@@ -329,6 +333,9 @@ Base URL: `http://localhost:9000`
 │   ├── statement_import.py     # 📄 Real-statement scoring: 4 live factors, entity resolution, PII fail-closed scan
 │   ├── statement_pdf.py        # 📄 Offline PDF parser/anonymizer CLI — medallion bronze→silver→gold (PII stripped at ingestion)
 │   ├── statement_explain.py    # 📄 Import explanation: zero-PII payload, live-Claude-or-template
+│   ├── regulatory_xai.py       # ⚖️ Auditor-ready justification: exact factor attribution, adverse-action, fairness attestation
+│   ├── predictive.py           # 🔮 Forward-looking 6-month default probability (transparent logistic, hybrid signals)
+│   ├── underwriting_agent.py   # 🤖 Autonomous underwriter: auto-draft recommendation + grounded chat (zero-PII aggregate)
 │   ├── ai_privacy.py           # 🔒 Zero-PII payload builder for AI explanations (test-enforced)
 │   ├── wathq_api.py            # 🟢 LIVE Wathq client — real gateway, graceful fallback
 │   ├── wathq_simulation.py     # Curated fallback data (live-first via wathq_api)
@@ -336,7 +343,7 @@ Base URL: `http://localhost:9000`
 │   ├── simah_simulation.py     # SIMAH thin-file simulation
 │   ├── models.py · profiles.py · database.py · pdf_gen.py
 │   ├── improvement_roadmap.py · explanations.json · generate_cache.py
-│   ├── tests/                  # 74 pytest cases — tiers, DBR, VANC, factor derivation, PII exclusion, statement import + entity resolution + explanation
+│   ├── tests/                  # 108 pytest cases — tiers, DBR, VANC, factor derivation, PII exclusion, statement import + entity resolution + explanation, regulatory XAI, forward-outlook, underwriting agent
 │   ├── requirements.txt · Dockerfile
 │   └── .env                    # (gitignored) Wathq API credentials — see Quick Start
 ├── frontend/

@@ -13,7 +13,7 @@ empty SIMAH files and no Mudad salary record.
 - Docker: `docker compose up --build` (both services)
 - Windows native: `.\start.ps1`
 - Manual: `cd backend && python -m uvicorn main:app --reload --port 9000` + `cd frontend && npm run dev`
-- Tests: `cd backend && python -m pytest tests/` (74 cases: scoring, factor derivation, PII exclusion, statement import, entity resolution, import explanation/roadmap — must stay green)
+- Tests: `cd backend && python -m pytest tests/` (108 cases: scoring, factor derivation, PII exclusion, statement import, entity resolution, import explanation/roadmap, regulatory XAI, forward-outlook predictive model, underwriting agent — must stay green)
 - CI: `.github/workflows/ci.yml` runs tests + API smoke + docker build on push
 
 ## Key facts
@@ -73,6 +73,34 @@ empty SIMAH files and no Mudad salary record.
   (`improvement_roadmap.py` with `import_evidence`) and a bilingual explanation
   (`statement_explain.py`: template by default, `?live_ai=true` tries Claude with
   the same zero-PII payload — five scores + tier — and falls back on any failure).
+- **Decision-intelligence layer** (three modules on top of the score, all
+  deterministic, all reusing the score/factor evidence — no new PII surface):
+  * `regulatory_xai.py` — auditor-ready justification: EXACT principal-factor
+    decomposition (composite = Σ weight×score, so attributions are exact, not
+    SHAP-on-a-black-box), a fair-lending adverse-action notice on decline/DBR
+    compression, the SAMA Art. 14(b) DBR arithmetic, and an INPUT-LEVEL
+    fairness attestation (no protected attribute enters the score or the AI
+    payload). Deliberately NOT a statistical disparate-impact audit. Endpoint
+    `GET /profiles/{id}/regulatory-explainability`; also embedded in
+    `/import-statement`. Frontend: `RegulatoryXAIPanel`.
+  * `predictive.py` — `forward_outlook()`: a 6-month forward default
+    probability from a TRANSPARENT logistic with PUBLISHED, fixed coefficients
+    over interpretable [0,1] risk signals (volatility, income-trend slope,
+    concentration, savings, DBR utilisation, Wathq registry flag) fused with
+    SIMAH status ("Hybrid Analysis"). Fully decomposed + reproducible; labelled
+    as a decision-support early-warning signal, NOT a trained PD model. Tune
+    coefficients/intercept in `predictive.py` only (persona targets: mohammad
+    ~6% LOW / noura ~29% ELEVATED / fahad ~45% HIGH). Endpoint
+    `GET /profiles/{id}/forward-outlook`; embedded in `/import-statement`.
+    Frontend: `ForwardOutlookPanel`.
+  * `underwriting_agent.py` — auto-drafts an underwriter recommendation and
+    answers officer chat, grounded ONLY in a zero-PII aggregate built by
+    `build_agent_context()`; `assert_context_clean()` fail-closes on any long
+    digit run or raw-data key, and the opt-in live-Claude path gets the SAME
+    aggregate. Endpoints `GET /profiles/{id}/underwriter-recommendation` and
+    `POST /agent/ask` ({profile_id, question, live_ai}); draft embedded in
+    `/import-statement`. Frontend: `UnderwriterAgent` (the one client
+    component in `/banker/[id]`).
 - Public pitch materials live in `docs/pitch/`: deck outline, competitive
   landscape, unit economics, deck screenshots, and the backup videos
   (`mihan_demo_backup.webm` for the persona flow, `mihan_import_demo.webm`
