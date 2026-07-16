@@ -17,6 +17,7 @@ from scoring import WEIGHTS, calculate_score, calculate_score_vanc
 from regulatory_xai import (
     PROTECTED_ATTRIBUTES,
     build_regulatory_explainability,
+    point_in_time_stamp,
 )
 
 
@@ -127,6 +128,32 @@ def test_watch_factor_between_thresholds():
 def test_strong_profile_has_no_cautionary():
     score = calculate_score(_factors(85), worst_month_income=25000)
     assert build_regulatory_explainability(score)["cautionary"] is None
+
+
+def test_content_hash_is_deterministic_sha256():
+    score = calculate_score(_factors(62), worst_month_income=8000)
+    a = build_regulatory_explainability(score)["auditability"]
+    b = build_regulatory_explainability(score)["auditability"]
+    assert a["hash_algorithm"] == "sha256"
+    assert len(a["content_hash"]) == 64
+    assert a["content_hash"] == b["content_hash"]  # reproducible from the score
+
+
+def test_content_hash_changes_when_decision_changes():
+    h1 = build_regulatory_explainability(calculate_score(_factors(62), 8000))["auditability"]["content_hash"]
+    h2 = build_regulatory_explainability(calculate_score(_factors(63), 8000))["auditability"]["content_hash"]
+    assert h1 != h2
+
+
+def test_point_in_time_stamp_binds_hash_to_moment():
+    content_hash = build_regulatory_explainability(
+        calculate_score(_factors(70), 10000)
+    )["auditability"]["content_hash"]
+    import hashlib
+    stamp = point_in_time_stamp(content_hash)
+    expected = hashlib.sha256((content_hash + stamp["issued_at"]).encode("utf-8")).hexdigest()
+    assert stamp["record_hash"] == expected
+    assert stamp["issued_at"].endswith("Z")
 
 
 def test_deterministic():

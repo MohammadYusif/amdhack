@@ -28,6 +28,10 @@ score alone, so the record shown on stage is the record that was used.
 """
 from __future__ import annotations
 
+import hashlib
+import json
+from datetime import datetime, timezone
+
 from models import FactorScores, MihanScore
 from scoring import WEIGHTS, TIER_THRESHOLDS
 
@@ -311,7 +315,7 @@ def build_regulatory_explainability(score: MihanScore, *, source: str = "persona
         "APPROVE_FOR_OFFICER_REVIEW" if score.loan is not None
         else "DECLINE_NO_OFFER_WITH_ROADMAP"
     )
-    return {
+    record = {
         "source": source,
         "decision": decision,
         "composite": score.composite,
@@ -321,18 +325,41 @@ def build_regulatory_explainability(score: MihanScore, *, source: str = "persona
         "adverse_action": _adverse_action(factors, score, dbr),
         "cautionary": _cautionary(factors, score),
         "fairness_check": _fairness_check(),
-        "auditability": {
-            "deterministic": True,
-            "reproducible_from": "score_object_only",
-            "logged_to_sama_audit": True,
-            "note_en": (
-                "This record is a pure function of the score; re-running it yields "
-                "the same justification, so the on-stage record is the decision record."
-            ),
-        },
         "standards_referenced": [
             "SAMA Responsible Lending Principles — Article 14(b) (45% DBR)",
             "SAMA Open Banking Framework (licensed activity, Mar 2026)",
             "Fair-lending adverse-action transparency (meaningful principal reasons)",
         ],
     }
+    # SHA-256 over the deterministic decision content (everything above), so an
+    # auditor can recompute it from the score alone and match the ledger entry.
+    content_hash = hashlib.sha256(
+        json.dumps(record, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    ).hexdigest()
+    record["auditability"] = {
+        "deterministic": True,
+        "reproducible_from": "score_object_plus_source",
+        "content_hash": content_hash,
+        "hash_algorithm": "sha256",
+        "logged_to_sama_audit": True,
+        "note_en": (
+            "content_hash is a SHA-256 over the deterministic decision content — "
+            "recomputable from the score alone. At decision time the endpoint stamps it "
+            "with issued_at and writes content_hash + issued_at to the append-only audit "
+            "ledger, so an auditor can later reproduce and verify the exact justification "
+            "the officer saw at that moment. (Tamper-evident ledger + deterministic hash — "
+            "not an immutable/blockchain claim.)"
+        ),
+    }
+    return record
+
+
+def point_in_time_stamp(content_hash: str) -> dict:
+    """Bind a deterministic content_hash to the MOMENT of decision. This is NOT
+    deterministic (it reads the wall clock), so it lives outside the pure
+    justification builder; the scoring endpoint writes it to the audit ledger.
+    An auditor recomputes content_hash from the score, then verifies
+    record_hash == sha256(content_hash + issued_at) against the stored entry."""
+    issued_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    record_hash = hashlib.sha256((content_hash + issued_at).encode("utf-8")).hexdigest()
+    return {"issued_at": issued_at, "record_hash": record_hash, "hash_algorithm": "sha256"}

@@ -26,7 +26,7 @@ from simah_simulation import get_simah_report
 from improvement_roadmap import generate_roadmap
 from statement_import import AnonStatement, score_statement
 from statement_explain import explain_import
-from regulatory_xai import build_regulatory_explainability
+from regulatory_xai import build_regulatory_explainability, point_in_time_stamp
 from predictive import forward_outlook
 from underwriting_agent import (
     answer_question,
@@ -266,6 +266,7 @@ def regulatory_explainability(profile_id: str, version: str = "v2"):
     else:
         score = calculate_score(factors, profile.worst_month_income)
     xai = build_regulatory_explainability(score, source="persona")
+    stamp = point_in_time_stamp(xai["auditability"]["content_hash"])
     append_audit_log(
         profile_id=profile.id,
         profile_name=profile.name_en,
@@ -274,11 +275,13 @@ def regulatory_explainability(profile_id: str, version: str = "v2"):
         event="REGULATORY_XAI_GENERATED",
         details=(
             f"decision={xai['decision']} adverse={xai['adverse_action'] is not None} "
-            f"dbr_compressed={xai['dbr_justification']['dbr_compressed']}"
+            f"dbr_compressed={xai['dbr_justification']['dbr_compressed']} "
+            f"content_hash={xai['auditability']['content_hash'][:16]} "
+            f"issued_at={stamp['issued_at']} record_hash={stamp['record_hash'][:16]}"
         ),
         endpoint="/profiles/{profile_id}/regulatory-explainability",
     )
-    return {"profile_id": profile_id, **xai}
+    return {"profile_id": profile_id, **xai, "point_in_time": stamp}
 
 
 @app.get("/profiles/{profile_id}/forward-outlook")
@@ -483,6 +486,9 @@ def import_statement(statement: AnonStatement, live_ai: bool = False):
     result["explanation"] = explain_import(score_obj.factors, score_obj, allow_live=live_ai)
     result["regulatory_explainability"] = build_regulatory_explainability(
         score_obj, source="imported-statement"
+    )
+    result["regulatory_explainability"]["point_in_time"] = point_in_time_stamp(
+        result["regulatory_explainability"]["auditability"]["content_hash"]
     )
     _import_incomes = [int(v["income"]) for v in result["monthly_buckets"].values()]
     result["forward_outlook"] = forward_outlook(

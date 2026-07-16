@@ -163,6 +163,28 @@ export default function RegulatoryXAIPanel({
       <p style={{ fontSize: 10, color: "var(--text-3)", marginTop: 10, lineHeight: 1.6 }}>
         {isEn ? fc.model_note_en : fc.model_note_ar}
       </p>
+
+      {/* Tamper-evident decision hash (the Auditor Test) */}
+      <div style={{
+        marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border)",
+        display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+      }}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4"
+            stroke="var(--text-3)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span style={{ fontSize: 10, color: "var(--text-3)" }}>
+          {isEn ? "Decision hash (SHA-256):" : "بصمة القرار (SHA-256):"}
+        </span>
+        <code style={{ fontSize: 10, color: "var(--text-2)", fontFamily: "monospace" }} dir="ltr">
+          {xai.auditability.content_hash.slice(0, 20)}…
+        </code>
+        {xai.point_in_time && (
+          <span style={{ fontSize: 10, color: "var(--text-3)" }} dir="ltr">
+            · {isEn ? "issued" : "صدر"} {xai.point_in_time.issued_at}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

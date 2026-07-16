@@ -222,6 +222,19 @@ export interface RegulatoryExplainability {
     human_in_the_loop: boolean
     human_note_en: string
   }
+  auditability: {
+    deterministic: boolean
+    reproducible_from: string
+    content_hash: string
+    hash_algorithm: string
+    logged_to_sama_audit: boolean
+    note_en: string
+  }
+  point_in_time?: {
+    issued_at: string
+    record_hash: string
+    hash_algorithm: string
+  }
   standards_referenced: string[]
 }
 
