@@ -13,7 +13,7 @@ empty SIMAH files and no Mudad salary record.
 - Docker: `docker compose up --build` (both services)
 - Windows native: `.\start.ps1`
 - Manual: `cd backend && python -m uvicorn main:app --reload --port 9000` + `cd frontend && npm run dev`
-- Tests: `cd backend && python -m pytest tests/` (108 cases: scoring, factor derivation, PII exclusion, statement import, entity resolution, import explanation/roadmap, regulatory XAI, forward-outlook predictive model, underwriting agent — must stay green)
+- Tests: `cd backend && python -m pytest tests/` (121 cases: scoring, factor derivation, PII exclusion, statement import, entity resolution, import explanation/roadmap, regulatory XAI, forward-outlook predictive model, underwriting agent — must stay green)
 - CI: `.github/workflows/ci.yml` runs tests + API smoke + docker build on push
 
 ## Key facts
@@ -80,9 +80,15 @@ empty SIMAH files and no Mudad salary record.
     SHAP-on-a-black-box), a fair-lending adverse-action notice on decline/DBR
     compression, the SAMA Art. 14(b) DBR arithmetic, and an INPUT-LEVEL
     fairness attestation (no protected attribute enters the score or the AI
-    payload). Deliberately NOT a statistical disparate-impact audit. Endpoint
-    `GET /profiles/{id}/regulatory-explainability`; also embedded in
-    `/import-statement`. Frontend: `RegulatoryXAIPanel`.
+    payload). Deliberately NOT a statistical disparate-impact audit. Also emits
+    a `cautionary` block (margin of transparency: WATCH_<factor> for 55<score≤65
+    drift + MARGINAL_APPROVAL when composite clears the 55 line by <5) so
+    approved-but-borderline files still get an explanation. Each record carries
+    a deterministic SHA-256 `content_hash` (reproducible from the score);
+    `point_in_time_stamp()` binds it to issued_at + record_hash at the endpoint
+    and writes it to the append-only audit ledger (tamper-evident, NOT
+    blockchain). Endpoint `GET /profiles/{id}/regulatory-explainability`; also
+    embedded in `/import-statement`. Frontend: `RegulatoryXAIPanel`.
   * `predictive.py` — `forward_outlook()`: a 6-month forward default
     probability from a TRANSPARENT logistic with PUBLISHED, fixed coefficients
     over interpretable [0,1] risk signals (volatility, income-trend slope,
@@ -100,7 +106,12 @@ empty SIMAH files and no Mudad salary record.
     aggregate. Endpoints `GET /profiles/{id}/underwriter-recommendation` and
     `POST /agent/ask` ({profile_id, question, live_ai}); draft embedded in
     `/import-statement`. Frontend: `UnderwriterAgent` (the one client
-    component in `/banker/[id]`).
+    component in `/banker/[id]`). Chat is MULTI-INTENT: `answer_question`
+    composes ALL matching intents (up to 3) with union grounding, plus a
+    `what_if` handler for curveballs (directional, no invented numbers). The
+    context includes a `volatility` block (μ, σ, μ−1.5σ income, and the
+    conservatism haircut) so the agent can explain the VANC penalty — driven by
+    `MihanScore.vanc_mean` / `vanc_sigma`.
 - Public pitch materials live in `docs/pitch/`: deck outline, competitive
   landscape, unit economics, deck screenshots, and the backup videos
   (`mihan_demo_backup.webm` for the persona flow, `mihan_import_demo.webm`
