@@ -234,6 +234,32 @@ export interface ForwardOutlook {
   }
 }
 
+// ── Autonomous Underwriting Agent ──
+
+export interface UnderwriterRecommendation {
+  action:
+    | "APPROVE_ROUTE_TO_OFFICER"
+    | "APPROVE_WITH_CONDITIONS"
+    | "DECLINE_ISSUE_ROADMAP"
+  headline_en: string
+  headline_ar: string
+  rationale_en: string[]
+  rationale_ar: string[]
+  conditions: { en: string; ar: string }[]
+  confidence: "HIGH" | "MEDIUM"
+  source: "template" | "claude-live"
+  disclaimer_en: string
+  disclaimer_ar: string
+}
+
+export interface AgentAnswer {
+  profile_id?: string
+  question?: string
+  answer_en: string
+  grounding: string[]
+  source: "template" | "claude-live"
+}
+
 export interface RoadmapAction {
   action_ar: string
   action_en: string

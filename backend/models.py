@@ -60,3 +60,9 @@ class AuditEntry(BaseModel):
 
 class HumanReviewRequest(BaseModel):
     notes: str = ""
+
+
+class AgentAskRequest(BaseModel):
+    profile_id: str
+    question: str
+    live_ai: bool = False

@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).parent))
 load_dotenv(Path(__file__).parent / ".env")
 
-from models import HumanReviewRequest, MihanScore
+from models import AgentAskRequest, HumanReviewRequest, MihanScore
 from profiles import PROFILES, PROFILE_ORDER
 from scoring import calculate_score, calculate_score_vanc
 from database import init_db, append_audit_log, get_audit_log
@@ -28,6 +28,11 @@ from statement_import import AnonStatement, score_statement
 from statement_explain import explain_import
 from regulatory_xai import build_regulatory_explainability
 from predictive import forward_outlook
+from underwriting_agent import (
+    answer_question,
+    build_agent_context,
+    draft_recommendation,
+)
 
 EXPLANATIONS_PATH = Path(__file__).parent / "explanations.json"
 _explanations: dict = {}
@@ -313,6 +318,70 @@ def forward_outlook_endpoint(profile_id: str):
     return {"profile_id": profile_id, **outlook}
 
 
+def _persona_agent_context(profile_id: str) -> dict:
+    """Zero-PII aggregate context for the underwriting agent, built from the
+    persona's live score + forward outlook. Raises KeyError via caller guard."""
+    profile = PROFILES[profile_id]
+    factors, _ = derive_factors(profile)
+    incomes = _monthly_buckets_from_transactions(profile_id)
+    score = calculate_score_vanc(factors, incomes)
+    simah = get_simah_report(profile_id)
+    wathq = verify_profile_clients(profile_id)
+    outlook = forward_outlook(
+        incomes, factors, score,
+        simah_thin=simah["file_type"] in ("THIN", "EMPTY"),
+        has_registry_flag=any(w.get("risk_flag") for w in wathq),
+    )
+    return build_agent_context(score, outlook)
+
+
+@app.get("/profiles/{profile_id}/underwriter-recommendation")
+def underwriter_recommendation(profile_id: str, live_ai: bool = False):
+    """
+    The Autonomous Underwriting Agent's decisive recommendation, drafted from
+    the assessment the moment it exists — action, rationale, risk-appropriate
+    conditions, and a confidence level. Operates on a zero-PII aggregate only.
+    """
+    if profile_id not in PROFILES:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    context = _persona_agent_context(profile_id)
+    draft = draft_recommendation(context, allow_live=live_ai)
+    append_audit_log(
+        profile_id=profile_id,
+        profile_name=PROFILES[profile_id].name_en,
+        composite_score=context["composite"],
+        tier=context["tier"],
+        event="UNDERWRITER_RECOMMENDATION_DRAFTED",
+        details=f"action={draft['action']} confidence={draft['confidence']} source={draft['source']}",
+        endpoint="/profiles/{profile_id}/underwriter-recommendation",
+    )
+    return {"profile_id": profile_id, "recommendation": draft}
+
+
+@app.post("/agent/ask")
+def agent_ask(body: AgentAskRequest):
+    """
+    Interrogate the Autonomous Underwriting Agent about a decision. The agent
+    answers grounded strictly in the zero-PII aggregate assessment — never raw
+    transactions, counterparties, or personal data. Drives the officer
+    dashboard's agent chat.
+    """
+    if body.profile_id not in PROFILES:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    context = _persona_agent_context(body.profile_id)
+    result = answer_question(body.question, context, allow_live=body.live_ai)
+    append_audit_log(
+        profile_id=body.profile_id,
+        profile_name=PROFILES[body.profile_id].name_en,
+        composite_score=context["composite"],
+        tier=context["tier"],
+        event="UNDERWRITER_AGENT_QUERIED",
+        details=f"grounding={','.join(result['grounding'])} source={result['source']}",
+        endpoint="/agent/ask",
+    )
+    return {"profile_id": body.profile_id, "question": body.question, **result}
+
+
 @app.get("/profiles/{profile_id}/ai-privacy-proof")
 def ai_privacy_proof(profile_id: str):
     """
@@ -420,6 +489,8 @@ def import_statement(statement: AnonStatement, live_ai: bool = False):
         _import_incomes, score_obj.factors, score_obj,
         simah_thin=False, has_registry_flag=False,
     )
+    _agent_ctx = build_agent_context(score_obj, result["forward_outlook"])
+    result["underwriter_recommendation"] = draft_recommendation(_agent_ctx, allow_live=live_ai)
     append_audit_log(
         profile_id="imported-statement",
         profile_name="Imported Real Statement (anonymized)",

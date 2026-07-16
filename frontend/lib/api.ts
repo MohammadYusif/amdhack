@@ -127,4 +127,13 @@ export const api = {
   getForwardOutlook: (id: string) =>
     fetch(`${API}/profiles/${id}/forward-outlook`)
       .then(r => r.json()) as Promise<import("./types").ForwardOutlook>,
+  getUnderwriterRecommendation: (id: string) =>
+    fetch(`${API}/profiles/${id}/underwriter-recommendation`)
+      .then(r => r.json()) as Promise<{ profile_id: string; recommendation: import("./types").UnderwriterRecommendation }>,
+  askAgent: (profileId: string, question: string, liveAi = false) =>
+    fetch(`${API}/agent/ask`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profile_id: profileId, question, live_ai: liveAi }),
+    }).then(r => r.json()) as Promise<import("./types").AgentAnswer>,
 }

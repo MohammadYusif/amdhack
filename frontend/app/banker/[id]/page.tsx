@@ -8,7 +8,8 @@ import FactorBar from "@/components/FactorBar";
 import LangToggle from "@/components/LangToggle";
 import RegulatoryXAIPanel from "@/components/RegulatoryXAIPanel";
 import ForwardOutlookPanel from "@/components/ForwardOutlookPanel";
-import type { RegulatoryExplainability, ForwardOutlook } from "@/lib/types";
+import UnderwriterAgent from "@/components/UnderwriterAgent";
+import type { RegulatoryExplainability, ForwardOutlook, UnderwriterRecommendation } from "@/lib/types";
 
 const FACTOR_LABELS = [
   { key: "expense_discipline",    ar: "انضباط المصروفات", en: "Expense Discipline"    },
@@ -30,13 +31,20 @@ export default async function ApplicantDetail({
   let scoreData, explanation;
   let xai: RegulatoryExplainability | null = null;
   let outlook: ForwardOutlook | null = null;
+  let recommendation: UnderwriterRecommendation | null = null;
   try {
-    [scoreData, explanation, xai, outlook] = await Promise.all([
+    const [sd, ex, x, o, rec] = await Promise.all([
       api.getScore(id),
       api.getExplanation(id, "ar"),
       api.getRegulatoryExplainability(id).catch(() => null),
       api.getForwardOutlook(id).catch(() => null),
+      api.getUnderwriterRecommendation(id).catch(() => null),
     ]);
+    scoreData = sd;
+    explanation = ex;
+    xai = x;
+    outlook = o;
+    recommendation = rec?.recommendation ?? null;
   } catch {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
@@ -152,6 +160,11 @@ export default async function ApplicantDetail({
 
         {/* Right column — decisions */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* Autonomous Underwriting Agent */}
+          {recommendation && (
+            <UnderwriterAgent profileId={id} recommendation={recommendation} isEn={isEn} />
+          )}
 
           {/* AI explanation */}
           <div style={panel}>
