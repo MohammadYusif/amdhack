@@ -28,6 +28,7 @@ export default function RegulatoryXAIPanel({
 }) {
   const dbr = xai.dbr_justification;
   const aa = xai.adverse_action;
+  const caut = xai.cautionary;
   const fc = xai.fairness_check;
 
   return (
@@ -111,6 +112,29 @@ export default function RegulatoryXAIPanel({
             {aa.principal_reasons.map((r) => (
               <li key={r.code} style={{ fontSize: 12, color: "var(--text-2)", lineHeight: 1.6 }}>
                 {isEn ? r.reason_en : r.reason_ar}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Cautionary transparency (margin of transparency) */}
+      {caut && (
+        <div style={{
+          background: "var(--tier-yellow-bg)", borderRadius: 12, padding: "12px 14px", marginBottom: 12,
+        }}>
+          <p style={{ fontSize: 12, fontWeight: 700, color: "var(--tier-yellow-text)", marginBottom: 6 }}>
+            {isEn ? "Cautionary — approaching the boundary" : "تنبيه — قريب من الحدّ"}
+          </p>
+          <ul style={{ margin: 0, paddingInlineStart: 18 }}>
+            {caut.marginal_approval && (
+              <li style={{ fontSize: 12, color: "var(--text-2)", lineHeight: 1.6 }}>
+                {isEn ? caut.marginal_approval.reason_en : caut.marginal_approval.reason_ar}
+              </li>
+            )}
+            {caut.watch_factors.map((w) => (
+              <li key={w.code} style={{ fontSize: 12, color: "var(--text-2)", lineHeight: 1.6 }}>
+                {isEn ? w.reason_en : w.reason_ar}
               </li>
             ))}
           </ul>

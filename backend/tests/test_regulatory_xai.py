@@ -100,6 +100,35 @@ def test_dbr_justification_uses_vanc_basis_in_phase2():
     assert dbr["dbr_cap_pct"] == 45
 
 
+def test_marginal_approval_flagged_just_above_threshold():
+    # composite 57 → YELLOW (approved), but only 2 points above the 55 line
+    score = calculate_score(_factors(57), worst_month_income=20000)
+    xai = build_regulatory_explainability(score)
+    assert score.loan is not None            # approved
+    assert xai["adverse_action"] is None     # not adverse
+    caut = xai["cautionary"]                  # ...but cautionary still fires
+    assert caut is not None and caut["has_caution"]
+    assert caut["marginal_approval"]["code"] == "MARGINAL_APPROVAL"
+
+
+def test_watch_factor_between_thresholds():
+    # a factor at 60 sits in the 55<score<=65 watch band
+    factors = FactorScores(
+        expense_discipline=90, income_stability=60, client_diversity=90,
+        savings_behavior=90, contract_verification=90,
+    )
+    score = calculate_score(factors, worst_month_income=20000)
+    caut = build_regulatory_explainability(score)["cautionary"]
+    assert caut is not None
+    codes = {w["code"] for w in caut["watch_factors"]}
+    assert "WATCH_INCOME_STABILITY" in codes
+
+
+def test_strong_profile_has_no_cautionary():
+    score = calculate_score(_factors(85), worst_month_income=25000)
+    assert build_regulatory_explainability(score)["cautionary"] is None
+
+
 def test_deterministic():
     score = calculate_score(_factors(62), worst_month_income=8000)
     a = build_regulatory_explainability(score)

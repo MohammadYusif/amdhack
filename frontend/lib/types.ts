@@ -188,6 +188,25 @@ export interface RegulatoryExplainability {
     notice_ar: string
     notice_en: string
   } | null
+  cautionary: {
+    has_caution: boolean
+    marginal_approval: {
+      code: string
+      margin_above_threshold: number
+      reason_ar: string
+      reason_en: string
+    } | null
+    watch_factors: {
+      code: string
+      label_ar: string
+      label_en: string
+      score: number
+      reason_ar: string
+      reason_en: string
+    }[]
+    notice_ar: string
+    notice_en: string
+  } | null
   fairness_check: {
     attestation_type: string
     protected_attributes_used_in_score: string[]

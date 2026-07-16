@@ -54,6 +54,14 @@ PROTECTED_ATTRIBUTES = [
 # notice (0-100 scale; below the YELLOW-equivalent midpoint).
 ADVERSE_FACTOR_THRESHOLD = 55.0
 
+# "Margin of transparency": a factor just ABOVE the adverse threshold
+# (55 < score ≤ 65) is not adverse, but it is drifting toward it — surface it
+# as a WATCH item so the officer sees the drift before it becomes a rejection.
+CAUTION_FACTOR_MARGIN = 10.0
+# A composite that clears the YELLOW financing line by only a few points is a
+# marginal approval — flag it even though the applicant was approved.
+CAUTION_COMPOSITE_MARGIN = 5.0
+
 
 def _principal_factors(factors: FactorScores) -> list[dict]:
     """Exact contribution of each factor to the composite, ranked by the
@@ -199,6 +207,67 @@ def _adverse_action(factors: FactorScores, score: MihanScore, dbr: dict) -> dict
     }
 
 
+def _cautionary(factors: FactorScores, score: MihanScore) -> dict | None:
+    """The margin of transparency. Independent of the adverse-action notice, so
+    it surfaces even on APPROVED files: factors drifting toward the adverse
+    threshold, and a composite that only marginally clears the financing line.
+    Returns None when nothing is close enough to warrant a caution."""
+    watch = []
+    hi = ADVERSE_FACTOR_THRESHOLD + CAUTION_FACTOR_MARGIN
+    for k in WEIGHTS:
+        if k == "contract_verification":
+            continue
+        s = getattr(factors, k)
+        if ADVERSE_FACTOR_THRESHOLD < s <= hi:
+            watch.append({
+                "code": f"WATCH_{k.upper()}",
+                "label_ar": FACTOR_LABELS[k]["ar"],
+                "label_en": FACTOR_LABELS[k]["en"],
+                "score": round(s, 1),
+                "reason_en": (
+                    f"{FACTOR_LABELS[k]['en']} ({round(s, 1)}/100) is only just above the "
+                    f"{ADVERSE_FACTOR_THRESHOLD:.0f} adverse threshold — monitor for drift."
+                ),
+                "reason_ar": (
+                    f"{FACTOR_LABELS[k]['ar']} ({round(s, 1)}/100) أعلى بقليل من عتبة "
+                    f"الإجراء السلبي ({ADVERSE_FACTOR_THRESHOLD:.0f}) — يُنصح بالمراقبة."
+                ),
+            })
+
+    marginal = None
+    yellow = TIER_THRESHOLDS["YELLOW"]
+    if score.loan is not None and yellow <= score.composite < yellow + CAUTION_COMPOSITE_MARGIN:
+        margin = round(score.composite - yellow, 1)
+        marginal = {
+            "code": "MARGINAL_APPROVAL",
+            "margin_above_threshold": margin,
+            "reason_en": (
+                f"Composite {score.composite} clears the {yellow} financing line by only "
+                f"{margin} point(s) — approve, but monitor closely."
+            ),
+            "reason_ar": (
+                f"النتيجة الإجمالية {score.composite} تتجاوز حد التمويل {yellow} بفارق "
+                f"{margin} نقطة فقط — الموافقة مع المراقبة اللصيقة."
+            ),
+        }
+
+    if not watch and marginal is None:
+        return None
+    return {
+        "has_caution": True,
+        "marginal_approval": marginal,
+        "watch_factors": watch,
+        "notice_en": (
+            "Cautionary transparency: these signals are not adverse yet, but they sit "
+            "close to the decision boundary and are shown so the officer sees drift early."
+        ),
+        "notice_ar": (
+            "شفافية تحذيرية: هذه الإشارات ليست سلبية بعد، لكنها قريبة من حد القرار "
+            "وتُعرض ليطّلع الموظف على أي انحراف مبكراً."
+        ),
+    }
+
+
 def _fairness_check() -> dict:
     """Input-level fairness attestation. Not a statistical disparate-impact
     audit (that needs population outcome data); an inspectable statement that
@@ -250,6 +319,7 @@ def build_regulatory_explainability(score: MihanScore, *, source: str = "persona
         "principal_factors": _principal_factors(factors),
         "dbr_justification": dbr,
         "adverse_action": _adverse_action(factors, score, dbr),
+        "cautionary": _cautionary(factors, score),
         "fairness_check": _fairness_check(),
         "auditability": {
             "deterministic": True,
