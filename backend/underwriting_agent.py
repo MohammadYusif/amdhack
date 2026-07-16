@@ -231,9 +231,120 @@ def _match(question: str, keywords: tuple[str, ...]) -> bool:
     return any(k in q for k in keywords)
 
 
+# --- Intent handlers: each returns (answer_text, grounding_list) ------------
+
+def _ans_dbr(ctx: dict) -> tuple[str, list[str]]:
+    dbr = ctx["dbr"]
+    ans = (
+        f"Affordability is set by SAMA Art. 14(b): 45% of the {dbr['income_basis_sar']:,} SAR "
+        f"underwriting income = {dbr['max_installment_sar']:,} SAR max installment. "
+        f"Offered {dbr['offered_installment_sar']:,} SAR, headroom {dbr['headroom_sar']:,} SAR"
+        + (" — offer is compressed to the ceiling." if dbr["compressed"] else ".")
+    )
+    return ans, ["dbr"]
+
+
+def _ans_forward(ctx: dict) -> tuple[str, list[str]]:
+    fwd = ctx["forward"]
+    sig = fwd["top_signals"][0] if fwd["top_signals"] else None
+    ans = (
+        f"Forward 6-month default probability is {fwd['pd_6m_pct']}% ({fwd['band']}), "
+        f"income trend {fwd['trend'].lower()} ({fwd['trend_pct_per_month']}%/mo)."
+        + (f" Largest driver: {sig['label_en']} (contribution {sig['contribution']})." if sig else "")
+    )
+    return ans, ["forward"]
+
+
+def _ans_fairness(ctx: dict) -> tuple[str, list[str]]:
+    ans = (
+        f"Fairness: {ctx['fairness']['protected_attributes_used']} protected attributes are used "
+        f"in the score, and AI-payload PII exposure is {ctx['fairness']['ai_pii_exposure']}. "
+        "The model is a fixed, published linear model, so every attribution is exact."
+    )
+    return ans, ["fairness"]
+
+
+def _ans_conditions(ctx: dict) -> tuple[str, list[str]]:
+    conds = _conditions(ctx)
+    if not conds:
+        ans = "No special conditions required — standard approval terms apply."
+    else:
+        ans = "Suggested conditions: " + " ".join(f"({i+1}) {c['en']}" for i, c in enumerate(conds))
+    return ans, ["conditions"]
+
+
+def _ans_adverse(ctx: dict) -> tuple[str, list[str]]:
+    if ctx["adverse_reasons"]:
+        reasons = "; ".join(r["reason_en"] for r in ctx["adverse_reasons"])
+        ans = f"Principal adverse-action reasons: {reasons}"
+    else:
+        ans = "No adverse action on this file — the application clears the financing threshold."
+    return ans, ["adverse_reasons"]
+
+
+def _ans_strength(ctx: dict) -> tuple[str, list[str]]:
+    top = ctx["principal_factors"][0]
+    ans = f"Strongest driver is {top['label_en']} at {top['score']}/100 ({top['contribution_pct']}% of the composite)."
+    return ans, ["principal_factors"]
+
+
+def _ans_stability(ctx: dict) -> tuple[str, list[str]]:
+    f = ctx["factors"]
+    fwd = ctx["forward"]
+    ans = (
+        f"Income stability {f['income_stability']}/100, client diversity {f['client_diversity']}/100. "
+        f"Six-month income trend is {fwd['trend'].lower()} at {fwd['trend_pct_per_month']}%/mo."
+    )
+    grounding = ["factors", "forward"]
+    vol = ctx.get("volatility")
+    if vol and vol.get("sigma_sar") is not None:
+        ans += (
+            f" Underwriting is deliberately conservative: average income SAR "
+            f"{vol['mean_monthly_income_sar']:,}, but the μ−1.5σ underwriting income is "
+            f"SAR {vol['underwriting_income_sar']:,} — a SAR {vol['conservatism_haircut_sar']:,} "
+            f"haircut driven by volatility (σ = SAR {vol['sigma_sar']:,})."
+        )
+        grounding.append("volatility")
+    return ans, grounding
+
+
+def _ans_what_if(ctx: dict) -> tuple[str, list[str]]:
+    """Curveball / hypothetical. Directional and honest — names which factors a
+    change would move and defers to a re-score for numbers. Never invents figures."""
+    fwd = ctx["forward"]
+    ans = (
+        "Directional read only (not a re-score): a new recurring high-value client would raise "
+        "client diversity and, if sustained across months, income stability — both lift the composite "
+        f"from {ctx['composite']} and widen DBR headroom via higher underwriting income. The binding "
+        f"constraint today is the {ctx['tier']} composite with a {fwd['band']} 6-month outlook. "
+        "Re-run the assessment with the updated statement to quantify the new score and offer."
+    )
+    return ans, ["what_if", "forward"]
+
+
+# (keywords, handler) — evaluated in this order; ALL matches compose one answer.
+INTENTS = [
+    (("dbr", "install", "afford", "capacity", "قسط", "نسبة الدين", "سداد", "طاقة"), _ans_dbr),
+    (("risk", "default", "6 month", "forward", "future", "next", "outlook",
+      "تعثر", "مخاطر", "مستقبل", "احتمال"), _ans_forward),
+    (("fair", "bias", "discrimin", "protected", "عدال", "تحيز", "تمييز"), _ans_fairness),
+    (("condition", "covenant", "escrow", "mitigat", "شرط", "ضمان", "تخفيف"), _ans_conditions),
+    (("declin", "reject", "why not", "adverse", "رفض", "سبب"), _ans_adverse),
+    (("strong", "best", "strength", "أقوى", "قوة", "أفضل"), _ans_strength),
+    (("trend", "volatil", "stability", "concentr", "divers", "client",
+      "اتجاه", "تقلب", "استقرار", "تنوع", "تركز", "عملاء"), _ans_stability),
+    (("what if", "what-if", "suppose", "imagine", "hypothetical", "new contract",
+      "high-value", "high value", "ماذا لو", "لو حصل", "عقد جديد", "افترض"), _ans_what_if),
+]
+
+MAX_COMPOSED_INTENTS = 3
+
+
 def answer_question(question: str, context: dict, *, allow_live: bool = False) -> dict:
     """Answer an officer's question, grounded strictly in the aggregate context.
-    Deterministic intent match by default; opt-in live Claude with fallback."""
+    ALL matching intents are composed into one answer (so a question touching
+    both DBR and forward risk pulls from both), with union grounding.
+    Deterministic by default; opt-in live Claude with template fallback."""
     assert_context_clean(context)
     q = (question or "").strip()
 
@@ -243,83 +354,25 @@ def answer_question(question: str, context: dict, *, allow_live: bool = False) -
             return {"answer_en": live, "grounding": ["forward", "dbr", "principal_factors"],
                     "source": "claude-live"}
 
-    fwd = context["forward"]
-    dbr = context["dbr"]
+    matches = [handler(context) for keywords, handler in INTENTS if _match(q, keywords)]
+    matches = matches[:MAX_COMPOSED_INTENTS]
 
-    if _match(q, ("dbr", "install", "afford", "capacity", "قسط", "نسبة الدين", "سداد", "طاقة")):
+    if not matches:
+        fwd = context["forward"]
         ans = (
-            f"Affordability is set by SAMA Art. 14(b): 45% of the {dbr['income_basis_sar']:,} SAR "
-            f"underwriting income = {dbr['max_installment_sar']:,} SAR max installment. "
-            f"Offered {dbr['offered_installment_sar']:,} SAR, headroom {dbr['headroom_sar']:,} SAR"
-            + (" — offer is compressed to the ceiling." if dbr["compressed"] else ".")
+            f"{context['tier']} tier (composite {context['composite']}); decision {context['decision']}. "
+            f"Forward 6-month default probability {fwd['pd_6m_pct']}% ({fwd['band']}). "
+            "Ask about affordability/DBR, forward risk, fairness, conditions, or why the decision was made."
         )
-        return {"answer_en": ans, "grounding": ["dbr"], "source": "template"}
+        return {"answer_en": ans, "grounding": ["summary"], "source": "template"}
 
-    if _match(q, ("risk", "default", "6 month", "forward", "future", "next", "outlook",
-                  "تعثر", "مخاطر", "مستقبل", "احتمال")):
-        sig = fwd["top_signals"][0] if fwd["top_signals"] else None
-        ans = (
-            f"Forward 6-month default probability is {fwd['pd_6m_pct']}% ({fwd['band']}), "
-            f"income trend {fwd['trend'].lower()} ({fwd['trend_pct_per_month']}%/mo)."
-            + (f" Largest driver: {sig['label_en']} (contribution {sig['contribution']})." if sig else "")
-        )
-        return {"answer_en": ans, "grounding": ["forward"], "source": "template"}
-
-    if _match(q, ("fair", "bias", "discrimin", "protected", "عدال", "تحيز", "تمييز")):
-        ans = (
-            f"Fairness: {context['fairness']['protected_attributes_used']} protected attributes are used "
-            f"in the score, and AI-payload PII exposure is {context['fairness']['ai_pii_exposure']}. "
-            "The model is a fixed, published linear model, so every attribution is exact."
-        )
-        return {"answer_en": ans, "grounding": ["fairness"], "source": "template"}
-
-    if _match(q, ("condition", "covenant", "escrow", "mitigat", "شرط", "ضمان", "تخفيف")):
-        conds = _conditions(context)
-        if not conds:
-            ans = "No special conditions required — standard approval terms apply."
-        else:
-            ans = "Suggested conditions: " + " ".join(f"({i+1}) {c['en']}" for i, c in enumerate(conds))
-        return {"answer_en": ans, "grounding": ["conditions"], "source": "template"}
-
-    if _match(q, ("declin", "reject", "why not", "adverse", "reason", "رفض", "سبب", "لماذا")):
-        if context["adverse_reasons"]:
-            reasons = "; ".join(r["reason_en"] for r in context["adverse_reasons"])
-            ans = f"Principal adverse-action reasons: {reasons}"
-        else:
-            ans = "No adverse action on this file — the application clears the financing threshold."
-        return {"answer_en": ans, "grounding": ["adverse_reasons"], "source": "template"}
-
-    if _match(q, ("strong", "best", "strength", "driver", "أقوى", "قوة", "أفضل")):
-        top = context["principal_factors"][0]
-        ans = f"Strongest driver is {top['label_en']} at {top['score']}/100 ({top['contribution_pct']}% of the composite)."
-        return {"answer_en": ans, "grounding": ["principal_factors"], "source": "template"}
-
-    if _match(q, ("trend", "volatil", "stability", "concentr", "divers", "client",
-                  "اتجاه", "تقلب", "استقرار", "تنوع", "تركز", "عملاء")):
-        f = context["factors"]
-        ans = (
-            f"Income stability {f['income_stability']}/100, client diversity {f['client_diversity']}/100. "
-            f"Six-month income trend is {fwd['trend'].lower()} at {fwd['trend_pct_per_month']}%/mo."
-        )
-        grounding = ["factors", "forward"]
-        vol = context.get("volatility")
-        if vol and vol.get("sigma_sar") is not None:
-            ans += (
-                f" Underwriting is deliberately conservative: average income SAR "
-                f"{vol['mean_monthly_income_sar']:,}, but the μ−1.5σ underwriting income is "
-                f"SAR {vol['underwriting_income_sar']:,} — a SAR {vol['conservatism_haircut_sar']:,} "
-                f"haircut driven by volatility (σ = SAR {vol['sigma_sar']:,})."
-            )
-            grounding.append("volatility")
-        return {"answer_en": ans, "grounding": grounding, "source": "template"}
-
-    # Fallback — a grounded summary
-    ans = (
-        f"{context['tier']} tier (composite {context['composite']}); decision {context['decision']}. "
-        f"Forward 6-month default probability {fwd['pd_6m_pct']}% ({fwd['band']}). "
-        "Ask about affordability/DBR, forward risk, fairness, conditions, or why the decision was made."
-    )
-    return {"answer_en": ans, "grounding": ["summary"], "source": "template"}
+    answer = " ".join(text for text, _ in matches)
+    grounding: list[str] = []
+    for _, gs in matches:
+        for g in gs:
+            if g not in grounding:
+                grounding.append(g)
+    return {"answer_en": answer, "grounding": grounding, "source": "template"}
 
 
 # ---------------------------------------------------------------------------

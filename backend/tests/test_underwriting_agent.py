@@ -121,6 +121,28 @@ def test_ask_fallback_is_grounded_summary():
     assert ctx["tier"] in r["answer_en"]
 
 
+def test_multi_intent_composes_dbr_and_forward():
+    ctx = _persona_context("noura")
+    r = answer_question("What's the DBR position and the 6-month default risk?", ctx)
+    # both grounding sources present, in intent order
+    assert "dbr" in r["grounding"] and "forward" in r["grounding"]
+    assert "45%" in r["answer_en"] and "%" in r["answer_en"]
+
+
+def test_what_if_curveball_is_grounded_and_no_invented_numbers():
+    ctx = _persona_context("fahad")
+    r = answer_question("What if they suddenly land a new high-value contract?", ctx)
+    assert "what_if" in r["grounding"]
+    assert "Directional" in r["answer_en"]
+    # it must reference the real current composite, not a fabricated future score
+    assert str(ctx["composite"]) in r["answer_en"]
+
+
+def test_single_intent_grounding_unchanged():
+    ctx = _persona_context("mohammad")
+    assert answer_question("affordability / DBR?", ctx)["grounding"] == ["dbr"]
+
+
 def test_context_exposes_volatility_block():
     ctx = _persona_context("noura")
     vol = ctx["volatility"]
