@@ -198,12 +198,47 @@ The ⚡ factors are recomputed from the transaction data on every request — in
 
 ---
 
+## Decision Intelligence & Risk Assessment
+
+The composite score is just the base. Three deterministic layers sit on top of it — all reusing the same score/factor evidence, none introducing a new PII surface — to turn a number into an *auditable, forward-looking, defensible* credit decision. They surface together on the **officer dashboard** (`/banker/[id]`).
+
+### ⚖️ Regulatory Explainability (XAI) — auditor-ready justification
+
+`backend/regulatory_xai.py` · `GET /profiles/{id}/regulatory-explainability` (also embedded in `/import-statement`)
+
+Because the Mihan score is a **fixed, published linear model** (composite = Σ weightᵢ × scoreᵢ), its explanations are *exact* — not SHAP/LIME approximations of a black box. The record carries:
+
+- **Exact principal-factor decomposition** — each factor's precise contribution to the composite, ranked.
+- **Fair-lending adverse-action notice** — specific principal reason codes whenever a loan is declined or the offer is DBR-compressed.
+- **Margin of transparency** — a `cautionary` block so *approved-but-borderline* files still get an explanation: `WATCH_<factor>` codes for factors drifting toward the adverse threshold (55 < score ≤ 65), and a `MARGINAL_APPROVAL` note when the composite clears the 55 financing line by fewer than 5 points. (Closes the "silent at 55.1" gap.)
+- **Input-level fairness attestation** — no protected attribute (gender, nationality, age, tribe/family name, marital status, region) enters the score *or* the AI payload. Deliberately scoped as an input-level attestation, **not** a statistical disparate-impact audit.
+- **Tamper-evident decision hash** — a deterministic **SHA-256 `content_hash`** reproducible from the score alone, stamped at decision time with `issued_at` + `record_hash` into the append-only audit ledger. An auditor recomputes the hash from the score and matches the ledger entry. (Tamper-evident ledger + deterministic hash — *not* an immutable/blockchain claim.)
+
+### 🔮 Predictive Behavioral Intelligence — forward-looking default probability
+
+`backend/predictive.py` · `GET /profiles/{id}/forward-outlook` (also embedded in `/import-statement`)
+
+A **6-month forward default probability** — a *transparent* logistic with **published, fixed coefficients** over six interpretable [0,1] risk signals: income volatility, income-**trend slope** (deterioration), client concentration, savings buffer, DBR utilisation, and a Wathq registry flag. It fuses live cash-flow dynamics with **SIMAH file status + Wathq registry** ("Hybrid Analysis"), so the view is an early-warning signal rather than a static snapshot. Every term is returned decomposed and reproducible. Honestly labelled as **decision-support**, not a trained PD model and not a guarantee. (Personas: ~6% LOW / ~29% ELEVATED / ~45% HIGH.)
+
+### 🤖 Autonomous Underwriting Agent — recommend & defend
+
+`backend/underwriting_agent.py` · `GET /profiles/{id}/underwriter-recommendation` + `POST /agent/ask`
+
+- **Auto-drafts** a decisive underwriter recommendation the moment an assessment exists — action, rationale, risk-appropriate conditions (escrow holdback, income routing, quarterly re-underwrite), and a confidence level.
+- **Grounded multi-intent chat** the officer can interrogate: a question touching both affordability and forward risk composes an answer from **both** sources; a `what_if` handler fields curveballs directionally (no invented numbers). It can also explain the **VANC volatility haircut** — the μ, σ, and the μ − 1.5σ gap behind a conservative income-stability penalty.
+- **Zero-PII by construction** — the agent only ever sees a clean aggregate (scores, DBR math, forward signals, adverse codes); `assert_context_clean()` fail-closes on any raw-data leak, and the opt-in live-Claude path gets the *same* aggregate.
+
+---
+
 ## Regulatory Design
 
 - **DBR cap — 45%** of total monthly income (SAMA Responsible Lending Principles, Article 14(b)). The 33.33% cap applies only to employer salary deductions — not freelancer income-based financing.
 - **Worst-month basis** — repayment capacity is computed from the applicant's *lowest* income month, not the average. Deliberately more conservative than income averaging.
 - **SIMAH exception sandbox** — thin SIMAH file + Mihan Score ≥ 75 bypasses the auto-reject and routes to a credit officer with the full decision package.
 - **AI explainability** — every scoring event is written to the SAMA audit log with its full factor breakdown; a plain-Arabic explanation (Claude-generated) accompanies every decision; human review is always one tap away.
+- **Auditor-ready adverse action** — declines and DBR-compressed offers carry a fair-lending notice with specific principal reason codes; borderline approvals carry a cautionary margin-of-transparency block (see [Decision Intelligence](#decision-intelligence--risk-assessment)).
+- **Input-level fairness** — no protected attribute enters the score or the AI payload; the model is a fixed, published linear model, so every attribution is exact.
+- **Tamper-evident audit** — each decision record carries a deterministic SHA-256 hash bound to its issue time in the append-only audit ledger, so the exact justification an officer saw is reproducible and verifiable after the fact.
 - **Cash Flow History Statement** — the downloadable PDF is deliberately *not* named "Proof of Income" (a legally distinct document that would create issuer liability). It contains no credit score and no SIMAH data.
 - **No auto-approval** — every loan decision routes through the officer dashboard.
 
