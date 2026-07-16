@@ -33,7 +33,7 @@ Standard rejection code: `NO_SALARY_TRANSFER`. End of conversation — until now
 
 Mihan analyzes **Open Banking transaction data** to score income *capacity* instead of employment history. It lives directly inside the Alinma app — no separate product, no new account.
 
-The model is proven locally: **Tamara** (Saudi BNPL) achieved **+32% approval rates** for freelancers using the same Open Banking cash-flow data. SAMA formally licensed Open Banking on **March 26, 2026**. Mihan is the first to bring this into a commercial-bank term loan.
+The model is proven locally: **Tamara** (Saudi BNPL) achieved **+32% approval rates** for freelancers using the same Open Banking cash-flow data. On **March 27, 2026** SAMA issued its first Open Banking license — a Major Payment Institution licence to Lean Technologies — moving Open Banking from the regulatory sandbox to a licensed activity. Mihan is the first to bring this into a commercial-bank term loan.
 
 > **SIMAH tells you if the applicant has repaid debt before. Mihan tells you if they can repay debt now.** For a freelancer with no credit history, SIMAH is silent — Mihan gives the bank a voice. (SIMAH still runs in parallel; it is never replaced.)
 
@@ -132,13 +132,16 @@ The demo runs as a mobile-first phone simulation in the browser. Walk through it
 | Source | Status | Detail |
 |---|---|---|
 | **Wathq** | 🟢 **LIVE** | Real client (`backend/wathq_api.py`) against the official gateway, `apiKey` auth, confirmed HTTP 200. The `/wathq-live-proof` endpoint fires an on-demand real call, shown in-app. |
-| **Lean AIS** | 🔵 Simulated | Deterministic synthetic transactions. Real AIS access for credit scoring requires the SAMA Regulatory Sandbox (institutional path — mapped in our roadmap). |
+| **Lean AIS** | 🔵 Simulated (demo) | Deterministic synthetic transactions **in the demo only**. The rail itself is live: Lean Technologies is the **first SAMA-licensed Open Banking provider** (Major Payment Institution licence, March 27, 2026), and the AIS rail Mihan uses has graduated from SAMA's regulatory sandbox to a **licensed activity**. The remaining gate is **commercial, not regulatory** — a signed agreement between a licensed AIS provider and the partner bank (Alinma's commercial sign-off) — after which the same engine runs on production data. |
 | **SIMAH** | 🔵 Simulated | Bureau access is restricted to licensed financial institutions with a SIMAH membership — only Alinma itself can hold this. |
 | **Nafath** | 🔵 Simulated | Requires a TCC license — a formal government authorization, not an open API. |
 
-**The real-statement importer closes the gap:** because production AIS access is
-license-gated, Mihan also ships an importer that takes a *real, consented* bank
-statement instead. `backend/statement_pdf.py` parses the standard Saudi retail
+**The real-statement importer closes the gap:** the technological and regulatory
+framework is completely live today — the only thing standing between the demo and
+production Lean AIS is a **commercial** bank-agent agreement, not a regulatory
+clearance. To bridge that commercial gap, Mihan also ships an importer that takes a
+*real, consented* bank statement instead, converting simulated demo data into a
+direct production roadmap the moment commercial onboarding completes. `backend/statement_pdf.py` parses the standard Saudi retail
 statement PDF and anonymizes it **at ingestion** — holder name, accounts, cards,
 and payment refs are stripped before any transaction object exists; income senders
 survive only as deterministic pseudonyms, and a fail-closed PII scan blocks the
@@ -165,7 +168,7 @@ the account holder's own name are still caught and excluded from income. Arabic
 sender names are Unicode-folded so they resolve as real entities, not dropped. The
 AI model stays outside ingestion entirely.
 
-**Why the demo narrative still uses simulated Wathq data:** the Trial-tier sandbox returns a single fixed record with the company name privacy-masked (literal `x` characters) for *any* CR number — it does not do real per-CR lookups. So the persona storyline keeps clean simulated names, while the **"خلف الكواليس"** panel proves the live integration honestly, masking and all. All four sources share the same `try-real-then-fallback` architecture, so each one is a drop-in replacement once its regulatory path opens.
+**Why the demo narrative still uses simulated Wathq data:** the Trial-tier sandbox returns a single fixed record with the company name privacy-masked (literal `x` characters) for *any* CR number — it does not do real per-CR lookups. So the persona storyline keeps clean simulated names, while the **"خلف الكواليس"** panel proves the live integration honestly, masking and all. All four sources share the same `try-real-then-fallback` architecture, so each one is a drop-in replacement once its access path opens — **commercial** for Lean (the SAMA-licensed rail is already live), and licensing for SIMAH/Nafath.
 
 ---
 
@@ -309,7 +312,7 @@ Base URL: `http://localhost:9000`
 | Frontend | Next.js 16 App Router · React 19 · Tailwind CSS 4 · Framer Motion |
 | Scoring | Custom VANC engine (Volatility-Adjusted Net Cash flow) |
 | Company verification | **Wathq — Ministry of Commerce (live API)** |
-| Open Banking | Lean Technologies AIS (simulated; SAMA-sandbox roadmap) |
+| Open Banking | Lean Technologies AIS (first SAMA-licensed Open Banking rail, Mar 2026; live — gate is commercial not regulatory; simulated in demo) |
 | KYC / Bureau | Nafath · SIMAH (simulated; license-gated) |
 | AI explanations | Claude (Anthropic) — Arabic + English |
 

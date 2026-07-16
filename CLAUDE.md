@@ -22,7 +22,13 @@ empty SIMAH files and no Mudad salary record.
   everything falls back to simulation — demo still works but the live-proof
   button shows `"live": false`. See README Quick Start for the format.
 - **Wathq is LIVE** (`backend/wathq_api.py` → api.wathq.sa sandbox). Lean,
-  SIMAH, and Nafath are simulated (license-gated). All use try-real-then-fallback.
+  SIMAH, and Nafath are simulated in the demo. **Lean is NOT license-gated**:
+  Lean Technologies is the first SAMA-licensed Open Banking provider (Major
+  Payment Institution licence, Mar 27 2026) — Open Banking, incl. the AIS rail
+  Mihan uses, has graduated from SAMA's regulatory sandbox to a licensed
+  activity, so access for this platform depends on a **commercial bank-agent
+  agreement** rather than waiting on regulatory clearance. SIMAH and Nafath
+  remain genuinely license-gated. All use try-real-then-fallback.
 - The Trial-tier Wathq sandbox returns one fixed record with the company name
   masked with literal `x` chars for ANY CR — that's why the persona narrative
   uses simulated names while `/wathq-live-proof` shows the raw live response.
