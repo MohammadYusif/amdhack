@@ -124,4 +124,7 @@ export const api = {
   getRegulatoryExplainability: (id: string) =>
     fetch(`${API}/profiles/${id}/regulatory-explainability`)
       .then(r => r.json()) as Promise<import("./types").RegulatoryExplainability>,
+  getForwardOutlook: (id: string) =>
+    fetch(`${API}/profiles/${id}/forward-outlook`)
+      .then(r => r.json()) as Promise<import("./types").ForwardOutlook>,
 }

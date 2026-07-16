@@ -204,6 +204,36 @@ export interface RegulatoryExplainability {
   standards_referenced: string[]
 }
 
+// ── Predictive Behavioral Intelligence (forward outlook) ──
+
+export interface OutlookSignal {
+  signal: string
+  label_ar: string
+  label_en: string
+  risk_value: number
+  coefficient: number
+  contribution: number
+}
+
+export interface ForwardOutlook {
+  profile_id?: string
+  horizon_months: number
+  default_probability_6m_pct: number
+  risk_band: "LOW" | "MODERATE" | "ELEVATED" | "HIGH"
+  trend_direction: "IMPROVING" | "STABLE" | "DETERIORATING"
+  trend_pct_per_month: number
+  intercept: number
+  signals: OutlookSignal[]
+  hybrid_inputs: string[]
+  method: {
+    model_type: string
+    learned_parameters: boolean
+    formula: string
+    note_en: string
+    note_ar: string
+  }
+}
+
 export interface RoadmapAction {
   action_ar: string
   action_en: string

@@ -27,6 +27,7 @@ from improvement_roadmap import generate_roadmap
 from statement_import import AnonStatement, score_statement
 from statement_explain import explain_import
 from regulatory_xai import build_regulatory_explainability
+from predictive import forward_outlook
 
 EXPLANATIONS_PATH = Path(__file__).parent / "explanations.json"
 _explanations: dict = {}
@@ -275,6 +276,43 @@ def regulatory_explainability(profile_id: str, version: str = "v2"):
     return {"profile_id": profile_id, **xai}
 
 
+@app.get("/profiles/{profile_id}/forward-outlook")
+def forward_outlook_endpoint(profile_id: str):
+    """
+    Forward-looking 6-month default-risk indicator. Fuses live Lean cash-flow
+    dynamics (income trend + volatility) with SIMAH file status and the Wathq
+    registry signal into one transparent, fully decomposed probability — a
+    predictive early-warning signal, not a static score. Drives the officer
+    dashboard's "Forward-Looking Default Probability" indicator.
+    """
+    profile = PROFILES.get(profile_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    factors, _ = derive_factors(profile)
+    incomes = _monthly_buckets_from_transactions(profile_id)
+    score = calculate_score_vanc(factors, incomes)
+    simah = get_simah_report(profile_id)
+    wathq = verify_profile_clients(profile_id)
+    outlook = forward_outlook(
+        incomes, factors, score,
+        simah_thin=simah["file_type"] in ("THIN", "EMPTY"),
+        has_registry_flag=any(w.get("risk_flag") for w in wathq),
+    )
+    append_audit_log(
+        profile_id=profile.id,
+        profile_name=profile.name_en,
+        composite_score=score.composite,
+        tier=score.tier,
+        event="FORWARD_OUTLOOK_COMPUTED",
+        details=(
+            f"pd_6m={outlook['default_probability_6m_pct']}% band={outlook['risk_band']} "
+            f"trend={outlook['trend_direction']}"
+        ),
+        endpoint="/profiles/{profile_id}/forward-outlook",
+    )
+    return {"profile_id": profile_id, **outlook}
+
+
 @app.get("/profiles/{profile_id}/ai-privacy-proof")
 def ai_privacy_proof(profile_id: str):
     """
@@ -376,6 +414,11 @@ def import_statement(statement: AnonStatement, live_ai: bool = False):
     result["explanation"] = explain_import(score_obj.factors, score_obj, allow_live=live_ai)
     result["regulatory_explainability"] = build_regulatory_explainability(
         score_obj, source="imported-statement"
+    )
+    _import_incomes = [int(v["income"]) for v in result["monthly_buckets"].values()]
+    result["forward_outlook"] = forward_outlook(
+        _import_incomes, score_obj.factors, score_obj,
+        simah_thin=False, has_registry_flag=False,
     )
     append_audit_log(
         profile_id="imported-statement",

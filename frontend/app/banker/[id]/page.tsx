@@ -7,7 +7,8 @@ import TierBadge from "@/components/TierBadge";
 import FactorBar from "@/components/FactorBar";
 import LangToggle from "@/components/LangToggle";
 import RegulatoryXAIPanel from "@/components/RegulatoryXAIPanel";
-import type { RegulatoryExplainability } from "@/lib/types";
+import ForwardOutlookPanel from "@/components/ForwardOutlookPanel";
+import type { RegulatoryExplainability, ForwardOutlook } from "@/lib/types";
 
 const FACTOR_LABELS = [
   { key: "expense_discipline",    ar: "انضباط المصروفات", en: "Expense Discipline"    },
@@ -28,11 +29,13 @@ export default async function ApplicantDetail({
 
   let scoreData, explanation;
   let xai: RegulatoryExplainability | null = null;
+  let outlook: ForwardOutlook | null = null;
   try {
-    [scoreData, explanation, xai] = await Promise.all([
+    [scoreData, explanation, xai, outlook] = await Promise.all([
       api.getScore(id),
       api.getExplanation(id, "ar"),
       api.getRegulatoryExplainability(id).catch(() => null),
+      api.getForwardOutlook(id).catch(() => null),
     ]);
   } catch {
     return (
@@ -139,6 +142,9 @@ export default async function ApplicantDetail({
               SIMAH: Thin file — no derogatory marks · Checked concurrently
             </p>
           </div>
+
+          {/* Forward-Looking Default Probability */}
+          {outlook && <ForwardOutlookPanel outlook={outlook} isEn={isEn} />}
 
           {/* Regulatory Explainability (XAI) */}
           {xai && <RegulatoryXAIPanel xai={xai} isEn={isEn} />}

@@ -30,6 +30,8 @@ Two consequences for how this is used:
      labeled as a real, live Wathq call — proof the integration genuinely
      works end-to-end, with the masking explained rather than hidden.
 """
+from __future__ import annotations
+
 import os
 import time
 import logging
