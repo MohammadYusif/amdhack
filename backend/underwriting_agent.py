@@ -84,6 +84,19 @@ def build_agent_context(score: MihanScore, outlook: dict) -> dict:
             "protected_attributes_used": len(xai["fairness_check"]["protected_attributes_used_in_score"]),
             "ai_pii_exposure": xai["fairness_check"]["ai_payload_pii_exposure"],
         },
+        # Volatility transparency — the μ/σ behind the conservative VANC income,
+        # so the agent can explain WHY income stability underwrites down.
+        "volatility": (
+            {
+                "mean_monthly_income_sar": score.vanc_mean,
+                "sigma_sar": score.vanc_sigma,
+                "underwriting_income_sar": score.vanc_income,
+                "conservatism_haircut_sar": score.vanc_mean - score.vanc_income,
+                "formula": "underwriting_income = μ − 1.5σ",
+            }
+            if score.vanc_mean is not None and score.vanc_income is not None
+            else None
+        ),
         "forward": {
             "pd_6m_pct": outlook["default_probability_6m_pct"],
             "band": outlook["risk_band"],
@@ -288,7 +301,17 @@ def answer_question(question: str, context: dict, *, allow_live: bool = False) -
             f"Income stability {f['income_stability']}/100, client diversity {f['client_diversity']}/100. "
             f"Six-month income trend is {fwd['trend'].lower()} at {fwd['trend_pct_per_month']}%/mo."
         )
-        return {"answer_en": ans, "grounding": ["factors", "forward"], "source": "template"}
+        grounding = ["factors", "forward"]
+        vol = context.get("volatility")
+        if vol and vol.get("sigma_sar") is not None:
+            ans += (
+                f" Underwriting is deliberately conservative: average income SAR "
+                f"{vol['mean_monthly_income_sar']:,}, but the μ−1.5σ underwriting income is "
+                f"SAR {vol['underwriting_income_sar']:,} — a SAR {vol['conservatism_haircut_sar']:,} "
+                f"haircut driven by volatility (σ = SAR {vol['sigma_sar']:,})."
+            )
+            grounding.append("volatility")
+        return {"answer_en": ans, "grounding": grounding, "source": "template"}
 
     # Fallback — a grounded summary
     ans = (

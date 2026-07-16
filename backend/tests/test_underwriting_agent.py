@@ -121,6 +121,21 @@ def test_ask_fallback_is_grounded_summary():
     assert ctx["tier"] in r["answer_en"]
 
 
+def test_context_exposes_volatility_block():
+    ctx = _persona_context("noura")
+    vol = ctx["volatility"]
+    assert vol is not None
+    assert vol["sigma_sar"] is not None
+    assert vol["conservatism_haircut_sar"] == vol["mean_monthly_income_sar"] - vol["underwriting_income_sar"]
+
+
+def test_stability_answer_cites_sigma():
+    ctx = _persona_context("fahad")
+    r = answer_question("Why is income stability penalized — what's the volatility?", ctx)
+    assert "volatility" in r["grounding"]
+    assert "σ" in r["answer_en"]
+
+
 def test_answers_are_deterministic():
     ctx = _persona_context("noura")
     a = answer_question("forward risk?", ctx)

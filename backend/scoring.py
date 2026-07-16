@@ -95,6 +95,8 @@ def calculate_score_vanc(
             phase="phase2",
             dbr_cap_pct=DBR_CAP,
             vanc_income=0,
+            vanc_mean=0,
+            vanc_sigma=0,
         )
     mu = statistics.mean(non_zero)
     sigma = statistics.stdev(non_zero) if len(non_zero) > 1 else 0
@@ -117,4 +119,6 @@ def calculate_score_vanc(
         phase="phase2",
         dbr_cap_pct=DBR_CAP,
         vanc_income=int(underwriting_income),
+        vanc_mean=int(round(mu)),
+        vanc_sigma=int(round(sigma)),
     )

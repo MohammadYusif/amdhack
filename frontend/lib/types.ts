@@ -34,6 +34,8 @@ export interface MihanScore {
   phase: string
   dbr_cap_pct: number
   vanc_income: number | null
+  vanc_mean?: number | null
+  vanc_sigma?: number | null
 }
 
 export interface WathqResult {

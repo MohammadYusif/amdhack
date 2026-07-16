@@ -143,6 +143,20 @@ class TestVANC:
         assert score.vanc_income == 0
         assert score.repayment_capacity == 0
 
+    def test_mean_and_sigma_exposed(self):
+        incomes = [8000, 9000, 10000, 11000, 12000]
+        score = calculate_score_vanc(uniform_factors(80), incomes)
+        assert score.vanc_mean == int(round(statistics.mean(incomes)))
+        assert score.vanc_sigma == int(round(statistics.stdev(incomes)))
+        assert score.vanc_sigma > 0  # volatile input has non-zero sigma
+        # the haircut is the SAR the 1.5σ conservatism removed
+        assert score.vanc_mean - score.vanc_income > 0
+
+    def test_flat_income_has_zero_sigma(self):
+        score = calculate_score_vanc(uniform_factors(80), [10000, 10000, 10000])
+        assert score.vanc_sigma == 0
+        assert score.vanc_income == score.vanc_mean == 10000
+
 
 class TestPersonas:
     """The three demo personas must land in their scripted tiers — scored

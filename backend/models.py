@@ -29,6 +29,8 @@ class MihanScore(BaseModel):
     phase: str = "phase1"
     dbr_cap_pct: float = 0.45
     vanc_income: Optional[int] = None
+    vanc_mean: Optional[int] = None    # μ — average monthly income (Phase 2)
+    vanc_sigma: Optional[int] = None   # σ — income volatility (Phase 2)
 
 
 class Profile(BaseModel):
