@@ -121,4 +121,7 @@ export const api = {
     }).then(r => r.json()),
   getAuditLog: () => fetch(`${API}/audit-log`).then(r => r.json()) as Promise<AuditEntry[]>,
   proofOfIncomeUrl: (id: string) => `${API}/profiles/${id}/proof-of-income`,
+  getRegulatoryExplainability: (id: string) =>
+    fetch(`${API}/profiles/${id}/regulatory-explainability`)
+      .then(r => r.json()) as Promise<import("./types").RegulatoryExplainability>,
 }

@@ -6,6 +6,8 @@ import ScoreGauge from "@/components/ScoreGauge";
 import TierBadge from "@/components/TierBadge";
 import FactorBar from "@/components/FactorBar";
 import LangToggle from "@/components/LangToggle";
+import RegulatoryXAIPanel from "@/components/RegulatoryXAIPanel";
+import type { RegulatoryExplainability } from "@/lib/types";
 
 const FACTOR_LABELS = [
   { key: "expense_discipline",    ar: "انضباط المصروفات", en: "Expense Discipline"    },
@@ -25,10 +27,12 @@ export default async function ApplicantDetail({
   const isEn = cookieStore.get("lang")?.value === "en";
 
   let scoreData, explanation;
+  let xai: RegulatoryExplainability | null = null;
   try {
-    [scoreData, explanation] = await Promise.all([
+    [scoreData, explanation, xai] = await Promise.all([
       api.getScore(id),
       api.getExplanation(id, "ar"),
+      api.getRegulatoryExplainability(id).catch(() => null),
     ]);
   } catch {
     return (
@@ -135,6 +139,9 @@ export default async function ApplicantDetail({
               SIMAH: Thin file — no derogatory marks · Checked concurrently
             </p>
           </div>
+
+          {/* Regulatory Explainability (XAI) */}
+          {xai && <RegulatoryXAIPanel xai={xai} isEn={isEn} />}
         </div>
 
         {/* Right column — decisions */}

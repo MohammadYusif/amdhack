@@ -143,6 +143,67 @@ export interface ImportAssessment {
   }
 }
 
+// ── Regulatory Explainability (XAI) ──
+
+export interface PrincipalFactor {
+  factor: string
+  label_ar: string
+  label_en: string
+  score: number
+  weight_pct: number
+  weighted_points: number
+  contribution_pct: number
+}
+
+export interface AdverseReason {
+  code: string
+  reason_ar: string
+  reason_en: string
+}
+
+export interface RegulatoryExplainability {
+  profile_id?: string
+  source: string
+  decision: "APPROVE_FOR_OFFICER_REVIEW" | "DECLINE_NO_OFFER_WITH_ROADMAP"
+  composite: number
+  tier: string
+  principal_factors: PrincipalFactor[]
+  dbr_justification: {
+    income_basis_sar: number
+    income_basis_method_en: string
+    income_basis_method_ar: string
+    dbr_cap_pct: number
+    max_affordable_installment_sar: number
+    offered_installment_sar: number
+    installment_headroom_sar: number
+    dbr_compressed: boolean
+    affordability_flag: string
+    citation_en: string
+    citation_ar: string
+  }
+  adverse_action: {
+    is_adverse: boolean
+    outcome: "DECLINED_NO_OFFER" | "OFFER_REDUCED"
+    principal_reasons: AdverseReason[]
+    notice_ar: string
+    notice_en: string
+  } | null
+  fairness_check: {
+    attestation_type: string
+    protected_attributes_used_in_score: string[]
+    protected_attributes_excluded: { ar: string; en: string }[]
+    scored_inputs: string[]
+    model_type: string
+    model_note_en: string
+    model_note_ar: string
+    ai_payload_pii_exposure: string
+    ai_payload_note_en: string
+    human_in_the_loop: boolean
+    human_note_en: string
+  }
+  standards_referenced: string[]
+}
+
 export interface RoadmapAction {
   action_ar: string
   action_en: string

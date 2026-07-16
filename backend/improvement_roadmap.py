@@ -3,6 +3,8 @@ Score improvement roadmap generator.
 Returns specific, actionable steps for freelancers in Yellow or Building tier.
 Each step includes projected score impact and timeline.
 """
+from __future__ import annotations
+
 from models import MihanScore
 
 

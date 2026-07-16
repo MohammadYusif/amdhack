@@ -4,6 +4,7 @@ import sys
 import zlib
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -25,6 +26,7 @@ from simah_simulation import get_simah_report
 from improvement_roadmap import generate_roadmap
 from statement_import import AnonStatement, score_statement
 from statement_explain import explain_import
+from regulatory_xai import build_regulatory_explainability
 
 EXPLANATIONS_PATH = Path(__file__).parent / "explanations.json"
 _explanations: dict = {}
@@ -206,7 +208,7 @@ def wathq_verify(profile_id: str):
 
 
 @app.get("/wathq-live-proof")
-def wathq_live_proof(cr: str | None = None):
+def wathq_live_proof(cr: Optional[str] = None):
     """
     On-demand real call to the live Wathq API (not the demo simulation).
     Used by the "خلف الكواليس" panel to prove the integration genuinely
@@ -237,6 +239,40 @@ def factor_analysis(profile_id: str):
         "note": "income_stability and client_diversity are recomputed from "
                 "transaction data on every call — nothing pre-baked.",
     }
+
+
+@app.get("/profiles/{profile_id}/regulatory-explainability")
+def regulatory_explainability(profile_id: str, version: str = "v2"):
+    """
+    Auditor-ready justification for the decision: exact principal-factor
+    decomposition, the SAMA Article 14(b) DBR arithmetic, a fair-lending
+    adverse-action notice when the offer is declined/compressed, and an
+    input-level fairness attestation (no protected attribute enters the score
+    or the AI payload). Drives the officer dashboard's "Auditor-Ready
+    Justification" panel and the compliance/legal-risk pitch slide.
+    """
+    profile = PROFILES.get(profile_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    factors, _ = derive_factors(profile)
+    if version == "v2":
+        score = calculate_score_vanc(factors, _monthly_buckets_from_transactions(profile_id))
+    else:
+        score = calculate_score(factors, profile.worst_month_income)
+    xai = build_regulatory_explainability(score, source="persona")
+    append_audit_log(
+        profile_id=profile.id,
+        profile_name=profile.name_en,
+        composite_score=score.composite,
+        tier=score.tier,
+        event="REGULATORY_XAI_GENERATED",
+        details=(
+            f"decision={xai['decision']} adverse={xai['adverse_action'] is not None} "
+            f"dbr_compressed={xai['dbr_justification']['dbr_compressed']}"
+        ),
+        endpoint="/profiles/{profile_id}/regulatory-explainability",
+    )
+    return {"profile_id": profile_id, **xai}
 
 
 @app.get("/profiles/{profile_id}/ai-privacy-proof")
@@ -338,6 +374,9 @@ def import_statement(statement: AnonStatement, live_ai: bool = False):
         "imported-statement", score_obj, import_evidence=result["evidence"]
     )
     result["explanation"] = explain_import(score_obj.factors, score_obj, allow_live=live_ai)
+    result["regulatory_explainability"] = build_regulatory_explainability(
+        score_obj, source="imported-statement"
+    )
     append_audit_log(
         profile_id="imported-statement",
         profile_name="Imported Real Statement (anonymized)",
