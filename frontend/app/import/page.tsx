@@ -56,6 +56,20 @@ const sectionTitle: React.CSSProperties = {
   fontSize: 14, fontWeight: 800, color: "var(--text-1)", marginBottom: 12,
 }
 
+/** Arabic message for a failure the user can act on.
+ *  JSON.parse throws SyntaxError with a V8-authored English string
+ *  (`Unexpected token '%', "%PDF-1.4"... is not valid JSON`) — never show
+ *  that: dropping the statement PDF straight into the picker is the most
+ *  likely mistake, and `accept=".json"` is only a dialog hint. A failed
+ *  fetch surfaces as TypeError ("Failed to fetch"), also English. */
+function arabicError(e: unknown): string {
+  if (e instanceof SyntaxError || (e instanceof Error && e.message === "bad shape"))
+    return "الملف غير صالح — اختر ملف JSON المُنتَج من أداة إخفاء الهوية (وليس ملف PDF)"
+  if (e instanceof TypeError)
+    return "تعذّر الاتصال بالخادم — تأكد أن الواجهة الخلفية تعمل على المنفذ 9000"
+  return e instanceof Error ? e.message : "حدث خطأ غير متوقع"
+}
+
 export default function ImportPage() {
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -65,6 +79,9 @@ export default function ImportPage() {
   const [statement, setStatement] = useState<ImportedStatement | null>(null)
   const [showPayload, setShowPayload] = useState(false)
   const [liveAiBusy, setLiveAiBusy] = useState(false)
+  // `error` only renders on the pick screen — a live-AI failure happens in the
+  // result phase and needs its own surface, or the button just goes quiet.
+  const [aiError, setAiError] = useState<string | null>(null)
 
   async function analyze(stmt: ImportedStatement) {
     setPhase("analyzing")
@@ -86,20 +103,21 @@ export default function ImportPage() {
       await analyze(parsed)
     } catch (e) {
       setPhase("pick")
-      setError(
-        e instanceof Error && e.message !== "bad shape" && e.message !== "Unexpected token"
-          ? e.message
-          : "الملف غير صالح — اختر ملف JSON المُنتَج من أداة إخفاء الهوية"
-      )
+      setError(arabicError(e))
     }
   }
 
   async function regenerateLive() {
     if (!statement || liveAiBusy) return
     setLiveAiBusy(true)
+    setAiError(null)
     try {
       const res = await importStatement(statement, true)
       setResult(res)
+    } catch (e) {
+      // never leave the button silently doing nothing — say what happened
+      // and that the text on screen is still the (valid) template
+      setAiError(`${arabicError(e)} — النص المعروض من القالب`)
     } finally {
       setLiveAiBusy(false)
     }
@@ -400,6 +418,15 @@ export default function ImportPage() {
                   <div style={{ fontSize: 13, color: "var(--text-2)", lineHeight: 2 }}>
                     {result.explanation.ar}
                   </div>
+                  {aiError && (
+                    <div style={{
+                      marginTop: 10, background: "var(--tier-red-bg, #FDE8E8)",
+                      color: "var(--tier-red-text, #8B1A1A)", borderRadius: 10,
+                      padding: "8px 12px", fontSize: 11, fontWeight: 600,
+                    }}>
+                      {aiError}
+                    </div>
+                  )}
                   <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                     <button onClick={regenerateLive} disabled={liveAiBusy} style={{
                       flex: 1, background: "var(--surface-2)", border: "1px solid var(--border)",

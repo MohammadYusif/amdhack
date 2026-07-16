@@ -94,7 +94,14 @@ def _live_explanation(factors: FactorScores, score: MihanScore) -> dict | None:
     try:
         import anthropic  # noqa: PLC0415 — optional dependency
 
-        client = anthropic.Anthropic(api_key=api_key, timeout=LIVE_TIMEOUT_SECONDS)
+        # max_retries=0 is load-bearing, not a default worth inheriting: the
+        # SDK retries twice by default and `timeout` is PER ATTEMPT, so on a
+        # stalled connection (venue wifi) the "12s" budget silently becomes
+        # ~3x12s + backoff and the button hangs ~40s. One attempt, then fall
+        # back to the template — that is what makes the demo path non-blocking.
+        client = anthropic.Anthropic(
+            api_key=api_key, timeout=LIVE_TIMEOUT_SECONDS, max_retries=0
+        )
         message = client.messages.create(
             model=CLAUDE_MODEL,
             max_tokens=400,
