@@ -295,8 +295,9 @@ def parse_statement_text(pages_text: list[str]) -> tuple[AnonStatement, list[str
     return statement, redact_terms
 
 
-def parse_statement_pdf(pdf_path: str) -> AnonStatement:
-    """PDF → anonymized statement, PII-scan enforced. pdfplumber is imported
+def parse_statement_pdf(pdf_path) -> AnonStatement:
+    """PDF → anonymized statement, PII-scan enforced. Accepts a path or a
+    binary file-like object (pdfplumber handles both). pdfplumber is imported
     lazily so the backend runs without it (JSON import path needs no PDF lib)."""
     import pdfplumber  # noqa: PLC0415 — optional dependency, only for PDF ingestion
 
@@ -305,6 +306,14 @@ def parse_statement_pdf(pdf_path: str) -> AnonStatement:
     statement, redact_terms = parse_statement_text(pages_text)
     assert_no_pii(statement, redact_terms)
     return statement
+
+
+def parse_statement_pdf_bytes(data: bytes) -> AnonStatement:
+    """In-memory variant for the upload endpoint: the raw PDF exists only as
+    this bytes object and the BytesIO view — nothing is written to disk."""
+    import io  # noqa: PLC0415
+
+    return parse_statement_pdf(io.BytesIO(data))
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ import zlib
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 import io
@@ -25,6 +25,7 @@ from wathq_simulation import verify_profile_clients, verify_cr
 from simah_simulation import get_simah_report
 from improvement_roadmap import generate_roadmap
 from statement_import import AnonStatement, score_statement
+from statement_pdf import parse_statement_pdf_bytes
 from statement_explain import explain_import
 from regulatory_xai import build_regulatory_explainability, point_in_time_stamp
 from predictive import forward_outlook
@@ -321,6 +322,12 @@ def forward_outlook_endpoint(profile_id: str):
     return {"profile_id": profile_id, **outlook}
 
 
+# Zero-PII agent aggregate of the most recently imported statement — set by
+# _assess_imported_statement so /agent/ask can serve the import dashboard's
+# chat. Only scores/ratios/tier live here; raw statement data is never kept.
+_LAST_IMPORT_AGENT_CTX: dict | None = None
+
+
 def _persona_agent_context(profile_id: str) -> dict:
     """Zero-PII aggregate context for the underwriting agent, built from the
     persona's live score + forward outlook. Raises KeyError via caller guard."""
@@ -367,15 +374,27 @@ def agent_ask(body: AgentAskRequest):
     Interrogate the Autonomous Underwriting Agent about a decision. The agent
     answers grounded strictly in the zero-PII aggregate assessment — never raw
     transactions, counterparties, or personal data. Drives the officer
-    dashboard's agent chat.
+    dashboard's agent chat. profile_id "imported-statement" targets the most
+    recently imported statement (its zero-PII aggregate is cached in memory
+    at import time — nothing raw is retained).
     """
-    if body.profile_id not in PROFILES:
+    if body.profile_id == "imported-statement":
+        if _LAST_IMPORT_AGENT_CTX is None:
+            raise HTTPException(
+                status_code=404,
+                detail="لا يوجد كشف مستورد بعد — استورد كشفاً أولاً",
+            )
+        context = _LAST_IMPORT_AGENT_CTX
+        profile_name = "Imported Real Statement (anonymized)"
+    elif body.profile_id in PROFILES:
+        context = _persona_agent_context(body.profile_id)
+        profile_name = PROFILES[body.profile_id].name_en
+    else:
         raise HTTPException(status_code=404, detail="Profile not found")
-    context = _persona_agent_context(body.profile_id)
     result = answer_question(body.question, context, allow_live=body.live_ai)
     append_audit_log(
         profile_id=body.profile_id,
-        profile_name=PROFILES[body.profile_id].name_en,
+        profile_name=profile_name,
         composite_score=context["composite"],
         tier=context["tier"],
         event="UNDERWRITER_AGENT_QUERIED",
@@ -461,20 +480,7 @@ def rejection_check(data: dict):
     }
 
 
-@app.post("/import-statement")
-def import_statement(statement: AnonStatement, live_ai: bool = False):
-    """
-    Score a REAL, consented, pre-anonymized bank statement through the same
-    VANC pipeline as the demo personas. The payload is produced offline by
-    statement_pdf.py (PII stripped at ingestion, fail-closed scan). Because a
-    real statement carries both sides of the ledger, FOUR of the five factors
-    are computed live here — the on-stage answer to "your cash flow is simulated".
-
-    Includes an improvement roadmap grounded in the statement's own evidence
-    and an AI explanation built from the zero-PII payload (five scores + tier).
-    live_ai=true attempts a live Claude call (template fallback on any failure);
-    the default is the deterministic template so the demo path never blocks.
-    """
+def _assess_imported_statement(statement: AnonStatement, live_ai: bool, endpoint: str) -> dict:
     if not statement.transactions:
         raise HTTPException(status_code=422, detail="Statement contains no transactions")
     result = score_statement(statement)
@@ -496,6 +502,8 @@ def import_statement(statement: AnonStatement, live_ai: bool = False):
         simah_thin=False, has_registry_flag=False,
     )
     _agent_ctx = build_agent_context(score_obj, result["forward_outlook"])
+    global _LAST_IMPORT_AGENT_CTX
+    _LAST_IMPORT_AGENT_CTX = _agent_ctx
     result["underwriter_recommendation"] = draft_recommendation(_agent_ctx, allow_live=live_ai)
     append_audit_log(
         profile_id="imported-statement",
@@ -509,8 +517,52 @@ def import_statement(statement: AnonStatement, live_ai: bool = False):
             f"deposits_match={result['integrity']['deposits_match']} "
             f"withdrawals_match={result['integrity']['withdrawals_match']}"
         ),
-        endpoint="/import-statement",
+        endpoint=endpoint,
     )
+    return result
+
+
+@app.post("/import-statement")
+def import_statement(statement: AnonStatement, live_ai: bool = False):
+    """
+    Score a REAL, consented, pre-anonymized bank statement through the same
+    VANC pipeline as the demo personas. The payload is produced offline by
+    statement_pdf.py (PII stripped at ingestion, fail-closed scan). Because a
+    real statement carries both sides of the ledger, FOUR of the five factors
+    are computed live here — the on-stage answer to "your cash flow is simulated".
+
+    Includes an improvement roadmap grounded in the statement's own evidence
+    and an AI explanation built from the zero-PII payload (five scores + tier).
+    live_ai=true attempts a live Claude call (template fallback on any failure);
+    the default is the deterministic template so the demo path never blocks.
+    """
+    return _assess_imported_statement(statement, live_ai, "/import-statement")
+
+
+@app.post("/import-statement-pdf")
+async def import_statement_pdf(file: UploadFile = File(...), live_ai: bool = False):
+    """
+    Direct-PDF variant of /import-statement: accepts the raw bank-statement
+    PDF and runs the SAME anonymizer as the offline CLI, entirely in memory —
+    the PDF bytes are never written to disk, and the bronze parse exists only
+    inside parse_statement_text. The fail-closed PII scan still gates scoring,
+    and the response includes the anonymized statement so the client can show
+    exactly what survived ingestion (and reuse it for live-AI regeneration
+    through the JSON endpoint).
+    """
+    data = await file.read()
+    try:
+        statement = parse_statement_pdf_bytes(data)
+    except ValueError as e:
+        # assert_no_pii / statement validation — fail closed, tell the officer why
+        raise HTTPException(status_code=422, detail=f"رفض الاستيراد: {e}") from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=422,
+            detail="تعذّر تحليل ملف PDF — تأكد أنه كشف حساب بنكي بالتنسيق المدعوم",
+        ) from e
+    result = _assess_imported_statement(statement, live_ai, "/import-statement-pdf")
+    result["anonymized_statement"] = statement.model_dump()
     return result
 
 

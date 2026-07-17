@@ -107,6 +107,25 @@ export async function importStatement(
   return res.json()
 }
 
+export async function importStatementPdf(
+  file: File,
+  liveAi = false
+): Promise<import("./types").ImportAssessment> {
+  const form = new FormData()
+  form.append("file", file)
+  const res = await fetch(`${API}/import-statement-pdf?live_ai=${liveAi}`, {
+    method: "POST",
+    body: form,
+  })
+  if (!res.ok) {
+    const detail = await res.json().catch(() => null)
+    throw new Error(
+      typeof detail?.detail === "string" ? detail.detail : "فشل استيراد كشف الحساب"
+    )
+  }
+  return res.json()
+}
+
 // ── Legacy api object (used by existing apply/ banker/ mihan/ routes) ──
 export const api = {
   getProfiles: () => fetch(`${API}/profiles`).then(r => r.json()) as Promise<Profile[]>,

@@ -143,6 +143,13 @@ export interface ImportAssessment {
       note_ar: string
     }
   }
+  // decision-intelligence layer — same blocks the persona dashboards render
+  regulatory_explainability: RegulatoryExplainability
+  forward_outlook: ForwardOutlook
+  underwriter_recommendation: UnderwriterRecommendation
+  // only on /import-statement-pdf responses: the zero-PII statement that
+  // survived in-memory anonymization (reused for live-AI regeneration)
+  anonymized_statement?: ImportedStatement
 }
 
 // ── Regulatory Explainability (XAI) ──

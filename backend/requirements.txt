@@ -7,4 +7,5 @@ fpdf2
 qrcode[pil]
 arabic-reshaper
 python-bidi
-pdfplumber  # offline statement anonymizer CLI (statement_pdf.py)
+pdfplumber  # statement anonymizer (statement_pdf.py) — CLI and /import-statement-pdf
+python-multipart  # FastAPI UploadFile support for /import-statement-pdf

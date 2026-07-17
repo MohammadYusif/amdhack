@@ -68,8 +68,14 @@ empty SIMAH files and no Mudad salary record.
   statement for the demo lives in gitignored `team/real_statement_anonymized.json`
   (bring it to the venue like the `.env`); it scores BUILDING/no-loan — honest, and
   it demos the self-transfer / cash-deposit income-exclusion controls. Never commit
-  raw statements or statement PDFs. The frontend screen is `/import` («جرّب ملفك»,
-  entry card on `/demo`); the response includes an evidence-grounded roadmap
+  raw statements or statement PDFs. `POST /import-statement-pdf` is the
+  direct-upload variant: it accepts the raw PDF, runs the SAME anonymizer
+  in memory only (never persisted, fail-closed PII scan still gates scoring),
+  and returns the result plus the anonymized statement (zero-PII, reused by
+  the UI for live-AI regeneration). Needs `pdfplumber` + `python-multipart`.
+  The frontend screen is `/import` («جرّب ملفك»,
+  entry card on `/demo`) and accepts BOTH the raw PDF and the pre-anonymized
+  JSON; the response includes an evidence-grounded roadmap
   (`improvement_roadmap.py` with `import_evidence`) and a bilingual explanation
   (`statement_explain.py`: template by default, `?live_ai=true` tries Claude with
   the same zero-PII payload — five scores + tier — and falls back on any failure).
