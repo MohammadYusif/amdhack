@@ -6,5 +6,5 @@ This folder keeps:
 
 - [`CLAUDE.md`](CLAUDE.md) — pointer to the canonical project context at [`../CLAUDE.md`](../CLAUDE.md)
 - [`assets/`](assets/) — brand assets (Mihan logo)
-- [`pitch/`](pitch/) — deck outline, competitive landscape, unit economics, deck screenshots, and the backup demo videos (`mihan_demo_backup.webm` — persona flow, `mihan_import_demo.webm` — real-statement import flow)
+- [`pitch/`](pitch/) — deck outline, competitive landscape, unit economics, deck screenshots, and the backup demo videos (`mihan_demo_backup.webm` — persona flow, `mihan_import_demo.webm` — real-statement import incl. the medallion pipeline strip, `mihan_officer_demo.webm` — officer decision-intelligence layer: XAI, forward outlook, bilingual agent chat, decision hash)
 - [`research/`](research/) — research brief, regulatory clearance, and a sample assessment report (PDFs)

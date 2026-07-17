@@ -407,7 +407,8 @@ Base URL: `http://localhost:9000`
 ├── docs/
 │   ├── assets/                 # Brand assets (logo)
 │   ├── pitch/                  # Deck outline · competitive landscape · unit economics ·
-│   │                           #   screenshots/ · backup video + import-flow video (.webm)
+│   │                           #   screenshots/ · 3 backup videos (.webm): persona flow ·
+│   │                           #   real-statement import · officer decision layer
 │   └── research/               # Research brief · regulatory clearance · sample report (PDF)
 ├── docker-compose.yml          # One-command Docker startup (both services)
 └── start.ps1                   # One-command Windows startup

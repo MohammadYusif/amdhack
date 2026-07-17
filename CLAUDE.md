@@ -121,8 +121,9 @@ empty SIMAH files and no Mudad salary record.
     `MihanScore.vanc_mean` / `vanc_sigma`.
 - Public pitch materials live in `docs/pitch/`: deck outline, competitive
   landscape, unit economics, deck screenshots, and the backup videos
-  (`mihan_demo_backup.webm` for the persona flow, `mihan_import_demo.webm`
-  for the real-statement import flow).
+  (`mihan_demo_backup.webm` — persona flow; `mihan_import_demo.webm` —
+  real-statement import incl. the medallion strip; `mihan_officer_demo.webm`
+  — officer decision-intelligence layer incl. the Arabic agent chat).
 - Backstage prep (demo script, day-of checklist, team cheat sheet, 72h plan)
   lives in the gitignored `team/` folder — kept out of the judged repo on
   purpose; it contains on-stage framing/Q&A coaching. Not pushed.
