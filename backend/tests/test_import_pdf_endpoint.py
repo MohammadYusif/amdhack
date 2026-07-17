@@ -63,8 +63,11 @@ def pdf_bytes() -> bytes:
 
 
 @pytest.fixture(scope="module")
-def client() -> TestClient:
-    return TestClient(main.app)
+def client():
+    # context manager runs the app lifespan (init_db creates the audit_log
+    # table) — a bare TestClient(...) skips startup and fails on fresh CI
+    with TestClient(main.app) as c:
+        yield c
 
 
 class TestParserBytes:
