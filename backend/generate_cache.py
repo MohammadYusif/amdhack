@@ -16,10 +16,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 from profiles import PROFILES, PROFILE_ORDER
 # Shared with the live /ai-privacy-proof endpoint — the payload shown on
 # stage is built by the exact same code that talks to the API here.
-from ai_privacy import SYSTEM_PROMPT as SYSTEM, build_ai_prompt
+from ai_privacy import CLAUDE_MODEL as MODEL, SYSTEM_PROMPT as SYSTEM, build_ai_prompt
 
 EXPLANATIONS_PATH = Path(__file__).parent / "explanations.json"
-MODEL = "claude-sonnet-4-6"
 
 
 def build_prompt(profile_id: str) -> str:

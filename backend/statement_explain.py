@@ -20,11 +20,8 @@ from __future__ import annotations
 
 import os
 
-from ai_privacy import SYSTEM_PROMPT, build_ai_prompt_from_score
+from ai_privacy import CLAUDE_MODEL, LIVE_TIMEOUT_SECONDS, SYSTEM_PROMPT, build_ai_prompt_from_score
 from models import FactorScores, MihanScore
-
-CLAUDE_MODEL = "claude-sonnet-4-6"
-LIVE_TIMEOUT_SECONDS = 12
 
 FACTOR_NAMES = {
     "expense_discipline": {"ar": "انضباط المصروفات", "en": "expense discipline"},

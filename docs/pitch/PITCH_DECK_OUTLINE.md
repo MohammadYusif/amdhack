@@ -4,9 +4,11 @@ Slide-by-slide content for the AMAD 2026 presentation. Brand: Alinma dark
 `#02141E`, copper `#CD907E`, logo from `docs/assets/mihan-logo.png`.
 Screenshots referenced from `demo_screenshots/`.
 
-> **Note:** the deck submitted for stage 1 is the 10-slide version below.
-> Slide **9b (the "graduation" slide)** is a NEXT-STAGE addition — insert it
-> only in the revised deck if we advance. See [COMPETITIVE_LANDSCAPE.md](COMPETITIVE_LANDSCAPE.md).
+> **Note:** the deck actually submitted (July 2026) follows the **official
+> AMAD 12-section template** (Google Slides), not this outline — this file
+> remains the narrative/message reference the template deck was written from.
+> Slide **9b (the "graduation" slide)** is a NEXT-STAGE addition — its story
+> lives in [COMPETITIVE_LANDSCAPE.md](COMPETITIVE_LANDSCAPE.md).
 
 | # | Slide | Content | Visual |
 |---|---|---|---|

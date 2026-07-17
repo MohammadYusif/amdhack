@@ -25,6 +25,7 @@ from __future__ import annotations
 import os
 import re
 
+from ai_privacy import CLAUDE_MODEL, LIVE_TIMEOUT_SECONDS
 from models import MihanScore
 from regulatory_xai import build_regulatory_explainability
 
@@ -32,9 +33,6 @@ _DIGIT_RUN = re.compile(r"\d{7,}")
 # Keys that would signal raw, non-aggregated data leaking into the agent context.
 _FORBIDDEN_KEYS = {"transactions", "counterparty", "name_ar", "name_en", "iban",
                    "national_id", "sender_iban", "account", "raw"}
-
-CLAUDE_MODEL = "claude-sonnet-4-6"
-LIVE_TIMEOUT_SECONDS = 12
 
 AGENT_SYSTEM_PROMPT = (
     "You are an assistant credit underwriter for a Saudi bank. You are given an "
@@ -470,7 +468,13 @@ def _live_call(context: dict, question: str | None) -> str | None:
     try:
         import anthropic  # noqa: PLC0415
 
-        client = anthropic.Anthropic(api_key=api_key, timeout=LIVE_TIMEOUT_SECONDS)
+        # max_retries=0 is load-bearing: `timeout` is PER ATTEMPT and the SDK
+        # retries twice by default, so without it a stalled connection turns
+        # the 12s budget into ~40s of hang on /agent/ask — in front of a judge.
+        # One attempt, then the deterministic template answers.
+        client = anthropic.Anthropic(
+            api_key=api_key, timeout=LIVE_TIMEOUT_SECONDS, max_retries=0
+        )
         message = client.messages.create(
             model=CLAUDE_MODEL,
             max_tokens=350,

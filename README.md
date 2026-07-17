@@ -70,7 +70,7 @@ The model is proven locally: **Tamara** (Saudi BNPL) achieved **+32% approval ra
 
 <div align="center">
 <img src="demo_screenshots/13_officer_dashboard_full.png" alt="Credit officer dashboard" width="760"/><br/>
-<b>The credit officer dashboard</b> — full factor breakdown, SIMAH exception banner, Wathq verification, income trend, and a human decision row. <b>No loan is ever auto-approved.</b>
+<b>The credit officer dashboard</b> — full factor breakdown, SIMAH exception banner, Wathq verification, income trend, and the decision-intelligence layer: auditor-ready XAI, forward-looking default probability, the underwriting agent, and a SHA-256 decision hash — ending in a human decision row. <b>No loan is ever auto-approved.</b>
 </div>
 
 <table>
@@ -83,12 +83,24 @@ The model is proven locally: **Tamara** (Saudi BNPL) achieved **+32% approval ra
 <td width="50%" align="center">
 <img src="demo_screenshots/19_import_roadmap.png" alt="Import roadmap and zero-PII AI payload" width="300"/><br/>
 <b>⭐ Zero-PII AI + evidence-grounded roadmap</b><br/>
-<sub>The literal payload reaching Claude: <b>five scores and a tier — none of the 928 transactions</b>. Below it, an improvement roadmap derived from the statement itself: 28.3 → 72.3 projected, including "route income through transfers — your SAR 4,800 in cash deposits couldn't count."</sub>
+<sub>The literal payload reaching Claude: <b>five scores and a tier — none of the 928 transactions</b>. Below it, an improvement roadmap derived from the statement itself: 28.5 → 72.5 projected, including "route income through transfers — your SAR 4,800 in cash deposits couldn't count."</sub>
+</td>
+</tr>
+<tr>
+<td width="50%" align="center">
+<img src="demo_screenshots/21_regulatory_xai.png" alt="Auditor-ready regulatory XAI panel" width="300"/><br/>
+<b>⭐ Auditor-ready justification (XAI)</b><br/>
+<sub><b>Exact</b> factor attribution (the score is a published linear model — no SHAP approximations), the SAMA Art. 14(b) DBR arithmetic, a fair-lending adverse-action notice, a marginal-approval caution, the input-level fairness attestation, and a <b>SHA-256 decision hash</b> bound to the audit ledger.</sub>
+</td>
+<td width="50%" align="center">
+<img src="demo_screenshots/20_underwriter_agent.png" alt="Autonomous underwriting agent with Arabic chat" width="300"/><br/>
+<b>⭐ Autonomous underwriting agent</b><br/>
+<sub>Auto-drafts a decisive recommendation the moment an assessment exists, then answers the officer's questions — <b>in Arabic or English</b> — grounded strictly in a zero-PII aggregate. Deterministic template by default; live Claude opt-in with the same aggregate.</sub>
 </td>
 </tr>
 </table>
 
-*All 21 walkthrough screenshots live in [`demo_screenshots/`](demo_screenshots/).*
+*All 24 walkthrough screenshots live in [`demo_screenshots/`](demo_screenshots/).*
 
 ---
 
@@ -383,14 +395,15 @@ Base URL: `http://localhost:9000`
 │   └── .env                    # (gitignored) Wathq API credentials — see Quick Start
 ├── frontend/
 │   ├── app/
-│   │   ├── page.tsx            # /      — rejection simulator
-│   │   ├── demo/               # /demo  — personas + full demo flow
-│   │   ├── apply/ · banker/ · mihan/
+│   │   ├── page.tsx            # /       — rejection simulator
+│   │   ├── demo/               # /demo   — personas + full demo flow
+│   │   ├── import/             # /import — «جرّب ملفك» real-statement scoring
+│   │   ├── apply/ · banker/ · mihan/    # banker/[id] hosts the decision-intelligence panels
 │   │   └── globals.css         # Alinma brand tokens
 │   ├── components/             # Shared UI
 │   ├── lib/                    # config · types · typed API helpers
 │   └── Dockerfile              # Multi-stage Next.js standalone build
-├── demo_screenshots/           # Full 21-shot walkthrough incl. the /import flow (used above)
+├── demo_screenshots/           # Full 24-shot walkthrough incl. /import + decision-layer close-ups (used above)
 ├── docs/
 │   ├── assets/                 # Brand assets (logo)
 │   ├── pitch/                  # Deck outline · competitive landscape · unit economics ·

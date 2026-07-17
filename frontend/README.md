@@ -39,7 +39,9 @@ override — it's baked in at build time, so rebuild the image after changing it
   same VANC engine — a bronze→silver→gold medallion-pipeline strip (raw →
   entity-resolved → scored), integrity badge, monthly cash-flow bars, income-exclusion
   callout, provenance-labeled factors, zero-PII AI explanation, improvement roadmap
-- [`app/apply/`](app/apply), [`app/banker/`](app/banker) — applicant and officer-side screens
+- [`app/apply/`](app/apply), [`app/banker/`](app/banker) — applicant and officer-side screens;
+  `banker/[id]` hosts the decision-intelligence panels (`RegulatoryXAIPanel`,
+  `ForwardOutlookPanel`, `UnderwriterAgent` — the one client component there)
 - [`lib/`](lib) — API client, types, i18n helpers, brand/tier config
 
 See [`AGENTS.md`](AGENTS.md) before touching App Router code — this Next.js

@@ -14,6 +14,15 @@ from models import Profile
 from scoring import calculate_score
 from factor_analysis import derive_factors
 
+# The ONE place the Claude model id + live-call timeout are defined.
+# statement_explain.py, underwriting_agent.py, and generate_cache.py all
+# import these — a typo'd or deprecated model id in a stray copy would fail
+# silently (every live path catches Exception and falls back to template),
+# leaving a dead "live AI" button that is indistinguishable from a missing
+# API key. One constant, one place to rotate models.
+CLAUDE_MODEL = "claude-sonnet-4-6"
+LIVE_TIMEOUT_SECONDS = 12
+
 SYSTEM_PROMPT = (
     "أنت مساعد مالي متخصص في شرح قرارات التمويل للعملاء بأسلوب واضح وإيجابي. "
     "اكتب فقرة واحدة باللغة العربية الفصحى، بأسلوب مهني ومحترم، تشرح فيها نتائج التقييم "
